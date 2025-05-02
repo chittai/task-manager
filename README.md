@@ -1,46 +1,66 @@
-# Getting Started with Create React App
+# Cloudscape タスク管理アプリケーション
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+AWS Cloudscapeデザインシステムを使用したタスク管理アプリケーションです。
 
-## Available Scripts
+## 機能
 
-In the project directory, you can run:
+- タスクの作成、編集、削除
+- タスクのステータス管理（未着手、進行中、完了）
+- タスクの優先度設定（低、中、高）
+- タスクの期限設定
+- タスクのフィルタリングと検索
+- ローカルストレージを使用したデータ保存
 
-### `npm start`
+## 使用技術
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in the browser.
+- React
+- TypeScript
+- AWS Cloudscape Design System
+- LocalStorage API
 
-The page will reload if you make edits.\
-You will also see any lint errors in the console.
+## 始め方
 
-### `npm test`
+### 必要条件
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+- Node.js (v14以上)
+- npm (v6以上)
 
-### `npm run build`
+### インストール
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+```bash
+# プロジェクトディレクトリに移動
+cd task-manager
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+# 依存関係のインストール
+npm install
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+# 開発サーバーの起動
+npm start
+```
 
-### `npm run eject`
+ブラウザで [http://localhost:3000](http://localhost:3000) を開くと、アプリケーションが表示されます。
 
-**Note: this is a one-way operation. Once you `eject`, you can’t go back!**
+## 使い方
 
-If you aren’t satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+1. 「新しいタスク」ボタンをクリックして、タスクを作成します。
+2. タスクカードの編集アイコンをクリックして、タスクを編集します。
+3. タスクカードの削除アイコンをクリックして、タスクを削除します。
+4. タスクカードのステータスボタンをクリックして、タスクのステータスを変更します。
+5. フィルターを使用して、特定のタスクを検索します。
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you’re on your own.
+## プロジェクト構造
 
-You don’t have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn’t feel obligated to use this feature. However we understand that this tool wouldn’t be useful if you couldn’t customize it when you are ready for it.
-
-## Learn More
-
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
-
-To learn React, check out the [React documentation](https://reactjs.org/).
+```
+src/
+  ├── components/       # UIコンポーネント
+  │   ├── TaskCard.tsx  # タスクカードコンポーネント
+  │   ├── TaskForm.tsx  # タスク作成・編集フォーム
+  │   ├── TaskList.tsx  # タスク一覧表示
+  │   └── TaskModal.tsx # タスク作成・編集モーダル
+  ├── hooks/            # カスタムフック
+  │   └── useTasks.ts   # タスク管理ロジック
+  ├── models/           # データモデル
+  │   └── Task.ts       # タスクのインターフェース定義
+  ├── App.tsx           # メインアプリケーション
+  └── index.tsx         # エントリーポイント
+```
