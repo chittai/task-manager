@@ -1,4 +1,4 @@
-# TaskManager 機能要件定義書 (**v1.1**)
+# TaskManager 機能要件定義書 (**v1.2**)
 
 ## 1. 概要
 
@@ -19,7 +19,7 @@
     -   作成日時 (`createdAt`)
     -   更新日時 (`updatedAt`)
     -   プロジェクト (`projectId`, オプション、関連するプロジェクトID)
-    -   コメントリスト (`comments`)
+    -   コメントリスト (`comments`, オプション、Comment オブジェクトの配列)
 -   FR-003: アプリケーション起動時やデータ読み込み中に、ローディング状態を示す表示を行うこと。
 -   FR-004: タスク一覧をフィルタリング（例: コンテキスト別、プロジェクト別、ステータス別）できること。
 -   FR-005: タスク一覧をソート（例: 期限日順、優先度順、作成日時順）できること。
@@ -83,3 +83,73 @@
 
 -   FR-026: 定期的なレビュー（週次レビューなど）をサポートする機能を提供すること（例: 特定のタグが付いたタスクの一覧表示、インボックス内の未処理タスクのリマインドなど）。
 
+## 3. データモデル
+
+本アプリケーションで利用する主要なデータモデルは以下の通りです。
+
+### 3.1. Task
+
+タスク情報を表します。
+
+```typescript
+interface Task {
+  id: string; // 一意の識別子
+  title: string; // タスクのタイトル
+  description: string; // タスクの詳細説明
+  status: 'inbox' | 'todo' | 'in-progress' | 'done' | 'wait-on'; // タスクのステータス
+  priority: 'low' | 'medium' | 'high'; // タスクの優先度
+  dueDate?: string; // 期限日 (ISO 8601 format, オプション)
+  createdAt: string; // 作成日時 (ISO 8601 format)
+  updatedAt: string; // 最終更新日時 (ISO 8601 format)
+  projectId?: string; // 関連プロジェクトのID (オプション)
+  comments?: Comment[]; // タスクに関連するコメントの配列 (オプション)
+}
+```
+
+### 3.2. Comment
+
+タスクへのコメント情報を表します。
+
+```typescript
+interface Comment {
+  id: string; // 一意の識別子
+  taskId: string; // 関連タスクのID
+  content: string; // コメント内容
+  createdAt: string; // 作成日時 (ISO 8601 format)
+  userId?: string; // コメント作成者のID (オプション)
+}
+```
+
+### 3.3. Project
+
+プロジェクト情報を表します。
+
+```typescript
+interface Project {
+  id: string; // 一意の識別子
+  name: string; // プロジェクト名
+  description?: string; // プロジェクトの説明 (オプション)
+  createdAt: string; // 作成日時 (ISO 8601 format)
+  updatedAt: string; // 最終更新日時 (ISO 8601 format)
+}
+```
+
+## 4. 主要コンポーネント/モジュール構成
+
+### 4.1. モデル (src/models/)
+
+-   `Task.ts`: タスクのデータ構造 (Task インターフェース) を定義します。
+-   `Comment.ts`: コメントのデータ構造 (Comment インターフェース) を定義します。
+-   `Project.ts`: プロジェクトのデータ構造 (Project インターフェース) を定義します。
+
+### 4.2. フック (src/hooks/)
+
+-   `useTasks.ts` (仮): タスクデータに関する状態管理とCRUD操作（LocalStorage利用）を提供します。(Issue #2 で実装予定)
+-   `useProjects.ts`: プロジェクトデータに関する状態管理とCRUD操作（LocalStorage利用）を提供します。
+
+### 4.3. UIコンポーネント (src/components/)
+
+-   `TaskList.tsx` (仮): タスク一覧の表示と操作を行います。(Issue #2 で実装予定)
+-   `TaskForm.tsx` (仮): タスクの追加・編集フォームを提供します。(Issue #2 で実装予定)
+-   `ProjectList.tsx`: プロジェクト一覧の表示と操作（編集・削除ボタンの配置）を行います。
+-   `ProjectForm.tsx`: プロジェクトの追加・編集フォームを提供します。
