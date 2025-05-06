@@ -100,8 +100,8 @@ const TaskCard: React.FC<TaskCardProps> = ({
         </SpaceBetween>
         
         <SpaceBetween direction="horizontal" size="xs">
-          <Box>期限: {formatDate(task.dueDate)}</Box>
-          <Box>作成: {formatDate(task.createdAt)}</Box>
+          <Box>期限: {formatDate(task.dueDate ? new Date(task.dueDate) : undefined)}</Box>
+          <Box>作成: {formatDate(new Date(task.createdAt))}</Box>
         </SpaceBetween>
         
         <Button onClick={handleStatusChange}>

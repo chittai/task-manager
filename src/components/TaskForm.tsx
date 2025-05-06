@@ -25,22 +25,24 @@ const TaskForm: React.FC<TaskFormProps> = ({
   submitButtonText = '保存'
 }) => {
   const [formData, setFormData] = useState<TaskFormData>({
-    title: '',
-    description: '',
-    status: 'todo',
-    priority: 'medium',
-    ...initialValues
+    title: initialValues?.title || '',
+    description: initialValues?.description || '',
+    status: initialValues?.status || 'todo',
+    priority: initialValues?.priority || 'medium',
+    dueDate: initialValues?.dueDate || undefined, // Store as string (ISO) or undefined
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
-    if (initialValues) {
-      setFormData(prev => ({
-        ...prev,
-        ...initialValues
-      }));
-    }
+    // When initialValues prop changes, update the form data to reflect the new selection or reset if null
+    setFormData({
+      title: initialValues?.title || '',
+      description: initialValues?.description || '',
+      status: initialValues?.status || 'todo',
+      priority: initialValues?.priority || 'medium',
+      dueDate: initialValues?.dueDate || undefined, // Store as string (ISO) or undefined
+    });
   }, [initialValues]);
 
   const handleChange = (field: keyof TaskFormData, value: any) => {
@@ -113,13 +115,9 @@ const TaskForm: React.FC<TaskFormProps> = ({
           label="ステータス"
         >
           <Select
-            selectedOption={{ value: formData.status, label: statusLabels[formData.status] }}
-            onChange={e => handleChange('status', e.detail.selectedOption.value)}
-            options={[
-              { value: 'todo', label: statusLabels.todo },
-              { value: 'in-progress', label: statusLabels['in-progress'] },
-              { value: 'done', label: statusLabels.done }
-            ]}
+            selectedOption={{ value: formData.status, label: statusLabels[formData.status] || formData.status }}
+            onChange={e => handleChange('status', e.detail.selectedOption.value as Task['status'])}
+            options={Object.entries(statusLabels).map(([value, label]) => ({ value: value as Task['status'], label }))}
           />
         </FormField>
 
@@ -128,12 +126,8 @@ const TaskForm: React.FC<TaskFormProps> = ({
         >
           <Select
             selectedOption={{ value: formData.priority, label: priorityLabels[formData.priority] }}
-            onChange={e => handleChange('priority', e.detail.selectedOption.value)}
-            options={[
-              { value: 'low', label: priorityLabels.low },
-              { value: 'medium', label: priorityLabels.medium },
-              { value: 'high', label: priorityLabels.high }
-            ]}
+            onChange={e => handleChange('priority', e.detail.selectedOption.value as Task['priority'])}
+            options={Object.entries(priorityLabels).map(([value, label]) => ({ value: value as Task['priority'], label }))}
           />
         </FormField>
 
@@ -141,8 +135,9 @@ const TaskForm: React.FC<TaskFormProps> = ({
           label="期限"
         >
           <DatePicker
-            value={formData.dueDate ? formData.dueDate.toISOString().split('T')[0] : ''}
-            onChange={e => handleChange('dueDate', e.detail.value ? new Date(e.detail.value) : undefined)}
+            value={formData.dueDate ? new Date(formData.dueDate).toISOString().split('T')[0] : ''} // Convert ISO to YYYY-MM-DD for display
+            onChange={e => handleChange('dueDate', e.detail.value === '' ? undefined : e.detail.value)} // Store ISO string or undefined
+            placeholder="YYYY/MM/DD"
           />
         </FormField>
       </SpaceBetween>
@@ -154,7 +149,9 @@ const TaskForm: React.FC<TaskFormProps> = ({
 const statusLabels: Record<Task['status'], string> = {
   'todo': '未着手',
   'in-progress': '進行中',
-  'done': '完了'
+  'done': '完了',
+  'inbox': '受信箱',
+  'wait-on': '待機中'
 };
 
 const priorityLabels: Record<Task['priority'], string> = {
