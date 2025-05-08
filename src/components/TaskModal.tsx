@@ -1,20 +1,24 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Modal,
   Box,
   SpaceBetween,
   Tabs,
 } from '@cloudscape-design/components';
-import { Task, TaskFormData } from '../models/Task';
+import { Task, TaskFormData, Comment as CommentType } from '../models/Task';
 import TaskForm from './TaskForm';
 import CommentList from './CommentList';
 import CommentForm from './CommentForm';
-import { useTasks, InternalTask } from '../hooks/useTasks';
+import { InternalTask } from '../hooks/useTasks';
 
 interface TaskModalProps {
   visible: boolean;
   onDismiss: () => void;
-  onTaskUpdate?: (updatedTask: InternalTask | Task | null) => void;
+  onAddTask?: (formData: TaskFormData) => Promise<InternalTask | null>;
+  onUpdateTask?: (id: string, formData: TaskFormData) => Promise<InternalTask | null>;
+  onAddComment?: (taskId: string, commentContent: string) => Promise<InternalTask | null>;
+  onUpdateComment?: (taskId: string, commentId: string, commentContent: string) => Promise<InternalTask | null>;
+  onDeleteComment?: (taskId: string, commentId: string) => Promise<InternalTask | null>;
   task?: Task | null;
 }
 
@@ -22,33 +26,38 @@ const TaskModal: React.FC<TaskModalProps> = ({
   visible,
   onDismiss,
   task: existingTask,
-  onTaskUpdate,
+  onAddTask,
+  onUpdateTask,
+  onAddComment,
+  onUpdateComment,
+  onDeleteComment,
 }) => {
-  console.log('[TaskModal.tsx] Rendering - existingTask.comments:', JSON.stringify(existingTask?.comments, null, 2));
   const [activeTabId, setActiveTabId] = useState('task-details');
-  const { addTask, updateTask, addCommentToTask, updateTaskComment, deleteTaskComment } = useTasks();
+  const [currentTask, setCurrentTask] = useState<Task | InternalTask | null | undefined>(existingTask);
+
+  useEffect(() => {
+    setCurrentTask(existingTask);
+  }, [existingTask, visible]);
 
   const handleTaskFormSubmit = async (formData: TaskFormData) => {
     let updatedOrNewTask: InternalTask | null = null;
-    if (existingTask) {
-      updatedOrNewTask = updateTask(existingTask.id, formData);
-    } else {
-      updatedOrNewTask = addTask(formData);
+    if (existingTask && onUpdateTask) {
+      updatedOrNewTask = await onUpdateTask(existingTask.id, formData);
+    } else if (onAddTask) {
+      updatedOrNewTask = await onAddTask(formData);
     }
-    if (onTaskUpdate && updatedOrNewTask) {
-      console.log('[TaskModal.tsx] handleTaskFormSubmit - calling onTaskUpdate with comments:', JSON.stringify(updatedOrNewTask?.comments, null, 2));
-      onTaskUpdate(updatedOrNewTask);
+    if (updatedOrNewTask) {
+      setCurrentTask(updatedOrNewTask);
     }
     onDismiss();
   };
 
-  const handleAddComment = async (commentContent: string) => {
-    if (existingTask) {
+  const handleAddCommentInternal = async (commentContent: string) => {
+    if (currentTask && currentTask.id && onAddComment) {
       try {
-        const updatedTask = await addCommentToTask(existingTask.id, commentContent);
-        if (onTaskUpdate && updatedTask) {
-          console.log('[TaskModal.tsx] handleAddComment - calling onTaskUpdate with comments:', JSON.stringify(updatedTask?.comments, null, 2));
-          onTaskUpdate(updatedTask);
+        const updatedTask = await onAddComment(currentTask.id, commentContent);
+        if (updatedTask) {
+          setCurrentTask(updatedTask);
         }
       } catch (error) {
         console.error("Failed to add comment:", error);
@@ -56,14 +65,36 @@ const TaskModal: React.FC<TaskModalProps> = ({
     }
   };
 
+  const handleUpdateCommentForList = async (taskId: string, commentId: string, commentContent: string): Promise<InternalTask | null> => {
+    if (onUpdateComment) {
+      const updatedTask = await onUpdateComment(taskId, commentId, commentContent);
+      if (updatedTask) setCurrentTask(updatedTask);
+      return updatedTask;
+    }
+    return null;
+  };
+
+  const handleDeleteCommentForList = async (taskId: string, commentId: string): Promise<InternalTask | null> => {
+    if (onDeleteComment) {
+      const updatedTask = await onDeleteComment(taskId, commentId);
+      if (updatedTask) setCurrentTask(updatedTask);
+      return updatedTask;
+    }
+    return null;
+  };
+
   const modalTitle = existingTask ? 'タスクを編集' : '新しいタスク';
 
-  React.useEffect(() => {
+  useEffect(() => {
     if (!visible) {
       setActiveTabId('task-details');
     }
-    console.log('[TaskModal.tsx] useEffect[visible] - existingTask.comments:', JSON.stringify(existingTask?.comments, null, 2));
-  }, [visible, existingTask]);
+  }, [visible]);
+
+  const commentsForList: CommentType[] = [];
+  if (currentTask && currentTask.comments) {
+    commentsForList.push(...currentTask.comments);
+  }
 
   return (
     <Modal
@@ -80,7 +111,7 @@ const TaskModal: React.FC<TaskModalProps> = ({
             id: 'task-details',
             content: (
               <TaskForm
-                initialTask={existingTask || undefined}
+                initialTask={currentTask ? (('createdAt' in currentTask && typeof currentTask.createdAt !== 'string') ? { ...currentTask, createdAt: (currentTask.createdAt as Date).toISOString(), updatedAt: (currentTask.updatedAt as Date).toISOString(), dueDate: (currentTask.dueDate as Date)?.toISOString() } : currentTask as Task) : undefined}
                 onSubmit={handleTaskFormSubmit}
                 onCancel={onDismiss}
               />
@@ -89,29 +120,22 @@ const TaskModal: React.FC<TaskModalProps> = ({
           {
             label: 'コメント',
             id: 'comments',
-            disabled: !existingTask,
+            disabled: !currentTask,
             content: (
               <Box margin={{ top: 'm' }}>
                 <SpaceBetween size="l">
-                  {existingTask && (
+                  {currentTask && currentTask.id && (
                     <>
                       <CommentForm 
-                        onSubmit={handleAddComment} 
+                        onSubmit={handleAddCommentInternal} 
                         isLoading={false} 
                         submitButtonText="コメントを追加"
                       />
-                      {console.log('[TaskModal.tsx] Rendering CommentList - passing existingTask.comments:', JSON.stringify(existingTask.comments, null, 2))}
                       <CommentList 
-                        comments={existingTask.comments || []} 
-                        taskId={existingTask.id} 
-                        updateTaskComment={updateTaskComment}
-                        deleteTaskComment={deleteTaskComment}
-                        onCommentsChanged={(updatedTaskFromList) => {
-                          console.log('[TaskModal.tsx] onCommentsChanged (from CommentList) - received updatedTask.comments:', JSON.stringify(updatedTaskFromList?.comments, null, 2));
-                          if (onTaskUpdate) {
-                            onTaskUpdate(updatedTaskFromList);
-                          }
-                        }}
+                        comments={commentsForList} 
+                        taskId={currentTask.id!} 
+                        updateTaskComment={handleUpdateCommentForList}
+                        deleteTaskComment={handleDeleteCommentForList}
                       />
                     </>
                   )}

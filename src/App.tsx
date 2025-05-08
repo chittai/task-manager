@@ -30,6 +30,11 @@ function App() {
     setSortCriteria,
     deleteTask,
     changeTaskStatus,
+    addTask,
+    updateTask,
+    addCommentToTask,
+    updateTaskComment,
+    deleteTaskComment,
   } = useTasks();
   const [isAddModalVisible, setIsAddModalVisible] = useState(false);
   const [isEditModalVisible, setIsEditModalVisible] = useState(false);
@@ -50,18 +55,6 @@ function App() {
 
   const handleStatusChange = (taskId: string, status: TaskStatus) => {
     changeTaskStatus(taskId, status);
-  };
-
-  const handleModalTaskUpdate = (updatedTask: InternalTask | Task | null) => {
-    if (updatedTask) {
-      if ('createdAt' in updatedTask && typeof updatedTask.createdAt !== 'string') {
-        setSelectedTask(toAppTask(updatedTask as InternalTask));
-      } else {
-        setSelectedTask(updatedTask as Task);
-      }
-    } else {
-      setSelectedTask(undefined);
-    }
   };
 
   return (
@@ -95,7 +88,10 @@ function App() {
           <TaskModal
             visible={isAddModalVisible}
             onDismiss={() => setIsAddModalVisible(false)}
-            onTaskUpdate={handleModalTaskUpdate}
+            onAddTask={addTask}
+            onAddComment={addCommentToTask}
+            onUpdateComment={updateTaskComment}
+            onDeleteComment={deleteTaskComment}
           />
 
           {/* タスク編集モーダル */}
@@ -106,7 +102,10 @@ function App() {
               setSelectedTask(undefined);
             }}
             task={selectedTask}
-            onTaskUpdate={handleModalTaskUpdate}
+            onUpdateTask={updateTask}
+            onAddComment={addCommentToTask}
+            onUpdateComment={updateTaskComment}
+            onDeleteComment={deleteTaskComment}
           />
         </ContentLayout>
       }

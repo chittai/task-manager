@@ -81,7 +81,7 @@ export const useTasks = () => {
   }, [tasks, loading]);
 
   // --- CRUD Operations ---
-  const addTask = useCallback((taskData: TaskFormData): InternalTask => {
+  const addTask = useCallback((taskData: TaskFormData): Promise<InternalTask | null> => {
     const now = new Date();
     const newTask: InternalTask = {
       id: uuidv4(),
@@ -93,13 +93,13 @@ export const useTasks = () => {
       createdAt: now,
       updatedAt: now,
       projectId: taskData.projectId,
-      comments: [], // Initialize comments as an empty array
+      comments: [], 
     };
     setTasks(prevTasks => [...prevTasks, newTask]);
-    return newTask;
+    return Promise.resolve(newTask);
   }, []);
 
-  const updateTask = useCallback((id: string, taskData: Partial<TaskFormData>): InternalTask | null => {
+  const updateTask = useCallback((id: string, taskData: Partial<TaskFormData>): Promise<InternalTask | null> => {
     let updatedTaskResult: InternalTask | null = null;
     setTasks(prevTasks =>
       prevTasks.map(task => {
@@ -120,10 +120,10 @@ export const useTasks = () => {
         return task;
       })
     );
-    return updatedTaskResult;
+    return Promise.resolve(updatedTaskResult);
   }, []);
 
-  const deleteTask = useCallback((id: string) => {
+  const deleteTask = useCallback((id: string): Promise<void> => {
     setTasks(prevTasks => {
       const updatedTasks = prevTasks.filter(task => task.id !== id);
       try {
@@ -136,18 +136,19 @@ export const useTasks = () => {
       }
       return updatedTasks;
     });
+    return Promise.resolve();
   }, []);
 
-  const changeTaskStatus = useCallback((id: string, status: TaskStatus): InternalTask | null => {
+  const changeTaskStatus = useCallback((id: string, status: TaskStatus): Promise<InternalTask | null> => {
     return updateTask(id, { status });
   }, [updateTask]);
 
   // --- Comment Operations ---
-  const addCommentToTask = useCallback(async (taskId: string, commentContent: string): Promise<InternalTask | null> => {
+  const addCommentToTask = useCallback((taskId: string, commentContent: string): Promise<InternalTask | null> => {
     const taskIndex = tasks.findIndex(t => t.id === taskId);
     if (taskIndex === -1) {
       console.error(`[useTasks.ts] addCommentToTask: Task with id ${taskId} not found`);
-      return null; 
+      return Promise.resolve(null); 
     }
     const originalTask = tasks[taskIndex];
 
@@ -181,14 +182,14 @@ export const useTasks = () => {
       return newTasks;
     });
 
-    return updatedTaskInstance; 
+    return Promise.resolve(updatedTaskInstance); 
   }, [tasks]);
 
-  const updateTaskComment = useCallback(async (taskId: string, commentId: string, newContent: string): Promise<InternalTask | null> => {
+  const updateTaskComment = useCallback((taskId: string, commentId: string, newContent: string): Promise<InternalTask | null> => {
     const taskIndex = tasks.findIndex(t => t.id === taskId);
     if (taskIndex === -1) {
       console.error(`[useTasks.ts] updateTaskComment: Task with id ${taskId} not found`);
-      return null;
+      return Promise.resolve(null);
     }
     const originalTask = tasks[taskIndex];
     console.log('[useTasks.ts] updateTaskComment - originalTask.comments:', JSON.stringify(originalTask.comments, null, 2));
@@ -221,14 +222,14 @@ export const useTasks = () => {
       return newTasks;
     });
 
-    return updatedTaskInstance;
+    return Promise.resolve(updatedTaskInstance);
   }, [tasks]);
 
-  const deleteTaskComment = useCallback(async (taskId: string, commentId: string): Promise<InternalTask | null> => {
+  const deleteTaskComment = useCallback((taskId: string, commentId: string): Promise<InternalTask | null> => {
     const taskIndex = tasks.findIndex(t => t.id === taskId);
     if (taskIndex === -1) {
       console.error(`[useTasks.ts] deleteTaskComment: Task with id ${taskId} not found`);
-      return null;
+      return Promise.resolve(null);
     }
     const originalTask = tasks[taskIndex];
     const updatedComments = (originalTask.comments || []).filter(comment => comment.id !== commentId);
@@ -251,7 +252,7 @@ export const useTasks = () => {
       return newTasks;
     });
 
-    return updatedTaskInstance;
+    return Promise.resolve(updatedTaskInstance);
   }, [tasks]);
 
   // --- Filtering and Sorting Logic ---
