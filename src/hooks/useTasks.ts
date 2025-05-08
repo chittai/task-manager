@@ -123,8 +123,19 @@ export const useTasks = () => {
     return updatedTaskResult;
   }, []);
 
-  const deleteTask = useCallback((id: string): void => {
-    setTasks(prevTasks => prevTasks.filter(task => task.id !== id));
+  const deleteTask = useCallback((id: string) => {
+    setTasks(prevTasks => {
+      const updatedTasks = prevTasks.filter(task => task.id !== id);
+      try {
+        // タスク削除時に即座にlocalStorageを更新
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(updatedTasks));
+        // setError(null); // setError は useEffect に任せるか、別途管理
+      } catch (err) {
+        console.error('Failed to save tasks to localStorage after delete:', err);
+        // setError('Failed to save tasks after deletion.'); // 同上
+      }
+      return updatedTasks;
+    });
   }, []);
 
   const changeTaskStatus = useCallback((id: string, status: TaskStatus): InternalTask | null => {
