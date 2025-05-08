@@ -28,30 +28,14 @@ function App() {
     setFilterCriteria,
     sortCriteria,
     setSortCriteria,
-    addTask,
-    updateTask,
     deleteTask,
     changeTaskStatus,
-    addCommentToTask,
   } = useTasks();
   const [isAddModalVisible, setIsAddModalVisible] = useState(false);
   const [isEditModalVisible, setIsEditModalVisible] = useState(false);
   const [selectedTask, setSelectedTask] = useState<Task | undefined>(undefined);
 
   const appTasks = toAppTasks(internalTasks);
-
-  const handleAddTask = (taskData: TaskFormData) => {
-    addTask(taskData);
-    setIsAddModalVisible(false);
-  };
-
-  const handleEditTask = (taskData: TaskFormData) => {
-    if (selectedTask) {
-      updateTask(selectedTask.id, taskData);
-      setIsEditModalVisible(false);
-      setSelectedTask(undefined);
-    }
-  };
 
   const handleDeleteTask = (taskId: string) => {
     if (window.confirm('このタスクを削除してもよろしいですか？')) {
@@ -66,6 +50,18 @@ function App() {
 
   const handleStatusChange = (taskId: string, status: TaskStatus) => {
     changeTaskStatus(taskId, status);
+  };
+
+  const handleModalTaskUpdate = (updatedTask: InternalTask | Task | null) => {
+    if (updatedTask) {
+      if ('createdAt' in updatedTask && typeof updatedTask.createdAt !== 'string') {
+        setSelectedTask(toAppTask(updatedTask as InternalTask));
+      } else {
+        setSelectedTask(updatedTask as Task);
+      }
+    } else {
+      setSelectedTask(undefined);
+    }
   };
 
   return (
@@ -99,10 +95,7 @@ function App() {
           <TaskModal
             visible={isAddModalVisible}
             onDismiss={() => setIsAddModalVisible(false)}
-            onSubmit={handleAddTask}
-            title="新しいタスク"
-            submitButtonText="作成"
-            onAddComment={() => {}}
+            onTaskUpdate={handleModalTaskUpdate}
           />
 
           {/* タスク編集モーダル */}
@@ -112,11 +105,8 @@ function App() {
               setIsEditModalVisible(false);
               setSelectedTask(undefined);
             }}
-            onSubmit={handleEditTask}
             task={selectedTask}
-            title="タスクを編集"
-            submitButtonText="更新"
-            onAddComment={addCommentToTask}
+            onTaskUpdate={handleModalTaskUpdate}
           />
         </ContentLayout>
       }

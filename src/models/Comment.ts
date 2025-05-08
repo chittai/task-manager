@@ -10,6 +10,8 @@ export interface Comment {
   content: string;
   /** Timestamp when the comment was created. */
   createdAt: string; // ISO 8601 format
+  /** Timestamp when the comment was last updated. */
+  updatedAt?: string; // ISO 8601 format, optional for backward compatibility
   /** Optional: ID of the user who created the comment. */
   userId?: string;
 }

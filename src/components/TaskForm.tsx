@@ -14,36 +14,37 @@ import { TaskFormData, Task } from '../models/Task';
 interface TaskFormProps {
   onSubmit: (task: TaskFormData) => void;
   onCancel: () => void;
-  initialValues?: Partial<Task>;
-  submitButtonText?: string;
+  initialTask?: Task;
 }
 
 const TaskForm: React.FC<TaskFormProps> = ({
   onSubmit,
   onCancel,
-  initialValues,
-  submitButtonText = '保存'
+  initialTask,
 }) => {
+  const submitButtonText = initialTask ? '変更を保存' : 'タスクを作成';
+
   const [formData, setFormData] = useState<TaskFormData>({
-    title: initialValues?.title || '',
-    description: initialValues?.description || '',
-    status: initialValues?.status || 'todo',
-    priority: initialValues?.priority || 'medium',
-    dueDate: initialValues?.dueDate || undefined, // Store as string (ISO) or undefined
+    title: initialTask?.title || '',
+    description: initialTask?.description || '',
+    status: initialTask?.status || 'todo',
+    priority: initialTask?.priority || 'medium',
+    dueDate: initialTask?.dueDate || undefined,
+    projectId: initialTask?.projectId,
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
-    // When initialValues prop changes, update the form data to reflect the new selection or reset if null
     setFormData({
-      title: initialValues?.title || '',
-      description: initialValues?.description || '',
-      status: initialValues?.status || 'todo',
-      priority: initialValues?.priority || 'medium',
-      dueDate: initialValues?.dueDate || undefined, // Store as string (ISO) or undefined
+      title: initialTask?.title || '',
+      description: initialTask?.description || '',
+      status: initialTask?.status || 'todo',
+      priority: initialTask?.priority || 'medium',
+      dueDate: initialTask?.dueDate || undefined,
+      projectId: initialTask?.projectId,
     });
-  }, [initialValues]);
+  }, [initialTask]);
 
   const handleChange = (field: keyof TaskFormData, value: any) => {
     setFormData(prev => ({
@@ -51,7 +52,6 @@ const TaskForm: React.FC<TaskFormProps> = ({
       [field]: value
     }));
 
-    // エラーをクリア
     if (errors[field]) {
       setErrors(prev => ({
         ...prev,
@@ -71,7 +71,6 @@ const TaskForm: React.FC<TaskFormProps> = ({
     return Object.keys(newErrors).length === 0;
   };
 
-  // Cloudscapeのボタンに対応するイベントハンドラ
   const handleFormSubmit = () => {
     if (validate()) {
       onSubmit(formData);
@@ -135,8 +134,8 @@ const TaskForm: React.FC<TaskFormProps> = ({
           label="期限"
         >
           <DatePicker
-            value={formData.dueDate ? new Date(formData.dueDate).toISOString().split('T')[0] : ''} // Convert ISO to YYYY-MM-DD for display
-            onChange={e => handleChange('dueDate', e.detail.value === '' ? undefined : e.detail.value)} // Store ISO string or undefined
+            value={formData.dueDate || ''}
+            onChange={e => handleChange('dueDate', e.detail.value === '' ? undefined : e.detail.value)}
             placeholder="YYYY/MM/DD"
           />
         </FormField>
@@ -145,7 +144,6 @@ const TaskForm: React.FC<TaskFormProps> = ({
   );
 };
 
-// ラベル定義
 const statusLabels: Record<Task['status'], string> = {
   'todo': '未着手',
   'in-progress': '進行中',
