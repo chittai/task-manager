@@ -144,6 +144,7 @@ export const useTasks = () => {
             content,
             createdAt: now,
             updatedAt: now, // 作成時もupdatedAtを設定
+            isOwnComment: true, // 自分のコメントとしてフラグを設定
             // userId: string; // TODO: Add when auth is implemented
           };
           updatedTask = {

@@ -24,8 +24,8 @@ const CommentCard: React.FC<CommentCardProps> = ({ comment, onEdit, onDelete }) 
 
   // TODO: ユーザー認証が実装されたら、実際のユーザー名やアバターを表示する
   const authorDisplay = comment.userId || 'Unknown User'; 
-  // TODO: コメントの所有者かどうかを判定するロジック (例: comment.userId === loggedInUserId)
-  const isOwner = true; // 仮に常に所有者とする (Issue #14 のスコープ)
+  // コメントの所有者かどうかを isOwnComment フラグで判定する
+  const isOwner = comment.isOwnComment === true;
 
   return (
     <Container
@@ -33,7 +33,7 @@ const CommentCard: React.FC<CommentCardProps> = ({ comment, onEdit, onDelete }) 
         <Header
           variant="h3" // 見出しレベルは適宜調整
           actions={
-            isOwner && ( // TODO: isOwner の判定を正しく実装する
+            isOwner && ( 
               <SpaceBetween direction="horizontal" size="xs">
                 <Button variant="icon" onClick={() => onEdit(comment)} ariaLabel="コメントを編集">
                   <Icon name="edit" />
