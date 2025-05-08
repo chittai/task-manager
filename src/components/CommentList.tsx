@@ -3,15 +3,23 @@ import { Box, SpaceBetween, Modal, Button } from '@cloudscape-design/components'
 import { Comment } from '../models/Comment';
 import CommentCard from './CommentCard';
 import CommentForm from './CommentForm';
-import { useTasks } from '../hooks/useTasks';
+import { InternalTask } from '../hooks/useTasks'; // ★ InternalTask を直接インポート
 
 interface CommentListProps {
   comments: Comment[];
   taskId: string;
+  onCommentsChanged?: (updatedTask: InternalTask | null) => void;
+  updateTaskComment: (taskId: string, commentId: string, newContent: string) => Promise<InternalTask | null>;
+  deleteTaskComment: (taskId: string, commentId: string) => Promise<InternalTask | null>;
 }
 
-const CommentList: React.FC<CommentListProps> = ({ comments, taskId }) => {
-  const { updateTaskComment, deleteTaskComment } = useTasks();
+const CommentList: React.FC<CommentListProps> = ({ 
+  comments, 
+  taskId, 
+  onCommentsChanged, 
+  updateTaskComment, 
+  deleteTaskComment 
+}) => {
   const [editingComment, setEditingComment] = useState<Comment | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
 
@@ -30,8 +38,11 @@ const CommentList: React.FC<CommentListProps> = ({ comments, taskId }) => {
   const handleUpdateComment = async (updatedContent: string) => {
     if (editingComment) {
       try {
-        await updateTaskComment(taskId, editingComment.id, updatedContent);
+        const updatedTask = await updateTaskComment(taskId, editingComment.id, updatedContent);
         setEditingComment(null);
+        if (onCommentsChanged) {
+          onCommentsChanged(updatedTask);
+        }
       } catch (error) {
         console.error('Failed to update comment:', error);
       }
@@ -45,8 +56,11 @@ const CommentList: React.FC<CommentListProps> = ({ comments, taskId }) => {
   const confirmDelete = async () => {
     if (showDeleteConfirm) {
       try {
-        await deleteTaskComment(taskId, showDeleteConfirm);
+        const updatedTask = await deleteTaskComment(taskId, showDeleteConfirm);
         setShowDeleteConfirm(null);
+        if (onCommentsChanged) {
+          onCommentsChanged(updatedTask);
+        }
       } catch (error) {
         console.error('Failed to delete comment:', error);
       }

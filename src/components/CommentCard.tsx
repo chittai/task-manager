@@ -30,24 +30,10 @@ const CommentCard: React.FC<CommentCardProps> = ({ comment, onEdit, onDelete }) 
   return (
     <Container
       header={
-        <Header
-          variant="h3" // 見出しレベルは適宜調整
-          actions={
-            isOwner && ( 
-              <SpaceBetween direction="horizontal" size="xs">
-                <Button variant="icon" onClick={() => onEdit(comment)} ariaLabel="コメントを編集">
-                  <Icon name="edit" />
-                </Button>
-                <Button variant="icon" onClick={() => onDelete(comment.id)} ariaLabel="コメントを削除">
-                  <Icon name="remove" />
-                </Button>
-              </SpaceBetween>
-            )
-          }
-        >
+        <Header variant="h3">
           <Box color="text-body-secondary" fontSize="body-s">
             {authorDisplay} - {formatDate(comment.createdAt)}
-            { 
+            {
               comment.updatedAt && comment.createdAt !== comment.updatedAt && (
               <span style={{ fontStyle: 'italic', marginLeft: '8px' }}>
                 (編集済み: {formatDate(comment.updatedAt)})
@@ -61,6 +47,18 @@ const CommentCard: React.FC<CommentCardProps> = ({ comment, onEdit, onDelete }) 
       <TextContent>
         <ReactMarkdown remarkPlugins={[remarkGfm]}>{comment.content}</ReactMarkdown>
       </TextContent>
+      {isOwner && (
+        <Box margin={{ top: 's' }}>
+          <SpaceBetween direction="horizontal" size="s">
+            <Button iconName="edit" onClick={() => onEdit(comment)}>
+              編集
+            </Button>
+            <Button iconName="remove" onClick={() => onDelete(comment.id)}>
+              削除
+            </Button>
+          </SpaceBetween>
+        </Box>
+      )}
     </Container>
   );
 };
