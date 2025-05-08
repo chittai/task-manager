@@ -93,7 +93,7 @@ export const useTasks = () => {
       createdAt: now,
       updatedAt: now,
       projectId: taskData.projectId,
-      // comments: taskData.comments, // Assuming TaskFormData doesn't handle comments here directly
+      comments: [], // Initialize comments as an empty array
     };
     setTasks(prevTasks => [...prevTasks, newTask]);
     return newTask;
@@ -132,79 +132,116 @@ export const useTasks = () => {
   }, [updateTask]);
 
   // --- Comment Operations ---
-  const addCommentToTask = useCallback((taskId: string, content: string): InternalTask | null => {
-    let updatedTask: InternalTask | null = null;
-    setTasks(prevTasks =>
-      prevTasks.map(task => {
-        if (task.id === taskId) {
-          const now = new Date().toISOString();
-          const newComment: Comment = {
-            id: uuidv4(),
-            taskId,
-            content,
-            createdAt: now,
-            updatedAt: now, // 作成時もupdatedAtを設定
-            // userId: string; // TODO: Add when auth is implemented
-          };
-          updatedTask = {
-            ...task,
-            comments: [...(task.comments || []), newComment],
-            updatedAt: new Date(), // Update the task's updatedAt timestamp
-          };
-          return updatedTask;
-        }
-        return task;
-      })
-    );
-    return updatedTask;
-  }, []);
+  const addCommentToTask = useCallback(async (taskId: string, commentContent: string): Promise<InternalTask | null> => {
+    const taskIndex = tasks.findIndex(t => t.id === taskId);
+    if (taskIndex === -1) {
+      console.error(`[useTasks.ts] addCommentToTask: Task with id ${taskId} not found`);
+      return null; 
+    }
+    const originalTask = tasks[taskIndex];
 
-  const updateTaskComment = useCallback((taskId: string, commentId: string, newContent: string): InternalTask | null => {
-    let updatedTask: InternalTask | null = null;
-    setTasks(prevTasks =>
-      prevTasks.map(task => {
-        if (task.id === taskId) {
-          const updatedComments = (task.comments || []).map(comment => {
-            if (comment.id === commentId) {
-              return {
-                ...comment,
-                content: newContent,
-                updatedAt: new Date().toISOString(), 
-              };
-            }
-            return comment;
-          });
-          updatedTask = {
-            ...task,
-            comments: updatedComments,
-            updatedAt: new Date(), // Update the task's updatedAt timestamp
-          };
-          return updatedTask;
-        }
-        return task;
-      })
-    );
-    return updatedTask;
-  }, []);
+    const newComment: Comment = {
+      id: uuidv4(),
+      taskId,
+      content: commentContent,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      isOwnComment: true, 
+    };
 
-  const deleteTaskComment = useCallback((taskId: string, commentId: string): InternalTask | null => {
-    let updatedTask: InternalTask | null = null;
-    setTasks(prevTasks =>
-      prevTasks.map(task => {
-        if (task.id === taskId) {
-          const filteredComments = (task.comments || []).filter(comment => comment.id !== commentId);
-          updatedTask = {
-            ...task,
-            comments: filteredComments,
-            updatedAt: new Date(), // Update the task's updatedAt timestamp
-          };
-          return updatedTask;
-        }
-        return task;
-      })
-    );
-    return updatedTask;
-  }, []);
+    const updatedComments = [...(originalTask.comments || []), newComment];
+    console.log('[useTasks.ts] addCommentToTask - originalTask.comments before add:', JSON.stringify(originalTask.comments, null, 2)); 
+    console.log('[useTasks.ts] addCommentToTask - newComment:', JSON.stringify(newComment, null, 2)); 
+    console.log('[useTasks.ts] addCommentToTask - updatedComments after add:', JSON.stringify(updatedComments, null, 2));
+
+    const updatedTaskInstance: InternalTask = {
+      ...originalTask,
+      comments: updatedComments,
+      updatedAt: new Date(),
+    };
+    console.log('[useTasks.ts] addCommentToTask - updatedTaskInstance before setTasks:', JSON.stringify(updatedTaskInstance, null, 2));
+
+    setTasks(prevTasks => {
+      const newTasks = [...prevTasks];
+      const currentTaskIndex = newTasks.findIndex(t => t.id === taskId);
+      if (currentTaskIndex !== -1) {
+        newTasks[currentTaskIndex] = updatedTaskInstance;
+      }
+      return newTasks;
+    });
+
+    return updatedTaskInstance; 
+  }, [tasks]);
+
+  const updateTaskComment = useCallback(async (taskId: string, commentId: string, newContent: string): Promise<InternalTask | null> => {
+    const taskIndex = tasks.findIndex(t => t.id === taskId);
+    if (taskIndex === -1) {
+      console.error(`[useTasks.ts] updateTaskComment: Task with id ${taskId} not found`);
+      return null;
+    }
+    const originalTask = tasks[taskIndex];
+    console.log('[useTasks.ts] updateTaskComment - originalTask.comments:', JSON.stringify(originalTask.comments, null, 2));
+
+    const updatedComments = (originalTask.comments || []).map(comment => {
+      if (comment.id === commentId) {
+        return {
+          ...comment,
+          content: newContent,
+          updatedAt: new Date().toISOString(),
+        };
+      }
+      return comment;
+    });
+    console.log('[useTasks.ts] updateTaskComment - mapped updatedComments:', JSON.stringify(updatedComments, null, 2));
+
+    const updatedTaskInstance: InternalTask = {
+      ...originalTask,
+      comments: updatedComments,
+      updatedAt: new Date(),
+    };
+    console.log('[useTasks.ts] updateTaskComment - updatedTaskInstance before setTasks:', JSON.stringify(updatedTaskInstance, null, 2));
+    
+    setTasks(prevTasks => {
+      const newTasks = [...prevTasks];
+      const currentTaskIndex = newTasks.findIndex(t => t.id === taskId);
+      if (currentTaskIndex !== -1) {
+        newTasks[currentTaskIndex] = updatedTaskInstance;
+      }
+      return newTasks;
+    });
+
+    return updatedTaskInstance;
+  }, [tasks]);
+
+  const deleteTaskComment = useCallback(async (taskId: string, commentId: string): Promise<InternalTask | null> => {
+    const taskIndex = tasks.findIndex(t => t.id === taskId);
+    if (taskIndex === -1) {
+      console.error(`[useTasks.ts] deleteTaskComment: Task with id ${taskId} not found`);
+      return null;
+    }
+    const originalTask = tasks[taskIndex];
+    const updatedComments = (originalTask.comments || []).filter(comment => comment.id !== commentId);
+    console.log('[useTasks.ts] deleteTaskComment - originalTask.comments:', JSON.stringify(originalTask.comments, null, 2));
+    console.log('[useTasks.ts] deleteTaskComment - filtered updatedComments:', JSON.stringify(updatedComments, null, 2));
+
+    const updatedTaskInstance: InternalTask = {
+      ...originalTask,
+      comments: updatedComments,
+      updatedAt: new Date(),
+    };
+    console.log('[useTasks.ts] deleteTaskComment - updatedTaskInstance before setTasks:', JSON.stringify(updatedTaskInstance, null, 2));
+
+    setTasks(prevTasks => {
+      const newTasks = [...prevTasks];
+      const currentTaskIndex = newTasks.findIndex(t => t.id === taskId);
+      if (currentTaskIndex !== -1) {
+        newTasks[currentTaskIndex] = updatedTaskInstance;
+      }
+      return newTasks;
+    });
+
+    return updatedTaskInstance;
+  }, [tasks]);
 
   // --- Filtering and Sorting Logic ---
   const priorityOrder: Record<Task['priority'], number> = {
@@ -272,7 +309,7 @@ export const useTasks = () => {
     }
 
     return tempTasks;
-  }, [tasks, filterCriteria, sortCriteria, priorityOrder]); // priorityOrder added as dependency
+  }, [tasks, filterCriteria, sortCriteria, priorityOrder]); 
 
   // --- Return Values ---
   return {

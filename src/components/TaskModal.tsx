@@ -24,8 +24,9 @@ const TaskModal: React.FC<TaskModalProps> = ({
   task: existingTask,
   onTaskUpdate,
 }) => {
+  console.log('[TaskModal.tsx] Rendering - existingTask.comments:', JSON.stringify(existingTask?.comments, null, 2));
   const [activeTabId, setActiveTabId] = useState('task-details');
-  const { addTask, updateTask, addCommentToTask } = useTasks();
+  const { addTask, updateTask, addCommentToTask, updateTaskComment, deleteTaskComment } = useTasks();
 
   const handleTaskFormSubmit = async (formData: TaskFormData) => {
     let updatedOrNewTask: InternalTask | null = null;
@@ -35,6 +36,7 @@ const TaskModal: React.FC<TaskModalProps> = ({
       updatedOrNewTask = addTask(formData);
     }
     if (onTaskUpdate && updatedOrNewTask) {
+      console.log('[TaskModal.tsx] handleTaskFormSubmit - calling onTaskUpdate with comments:', JSON.stringify(updatedOrNewTask?.comments, null, 2));
       onTaskUpdate(updatedOrNewTask);
     }
     onDismiss();
@@ -45,6 +47,7 @@ const TaskModal: React.FC<TaskModalProps> = ({
       try {
         const updatedTask = await addCommentToTask(existingTask.id, commentContent);
         if (onTaskUpdate && updatedTask) {
+          console.log('[TaskModal.tsx] handleAddComment - calling onTaskUpdate with comments:', JSON.stringify(updatedTask?.comments, null, 2));
           onTaskUpdate(updatedTask);
         }
       } catch (error) {
@@ -59,7 +62,8 @@ const TaskModal: React.FC<TaskModalProps> = ({
     if (!visible) {
       setActiveTabId('task-details');
     }
-  }, [visible]);
+    console.log('[TaskModal.tsx] useEffect[visible] - existingTask.comments:', JSON.stringify(existingTask?.comments, null, 2));
+  }, [visible, existingTask]);
 
   return (
     <Modal
@@ -96,9 +100,18 @@ const TaskModal: React.FC<TaskModalProps> = ({
                         isLoading={false} 
                         submitButtonText="コメントを追加"
                       />
+                      {console.log('[TaskModal.tsx] Rendering CommentList - passing existingTask.comments:', JSON.stringify(existingTask.comments, null, 2))}
                       <CommentList 
                         comments={existingTask.comments || []} 
                         taskId={existingTask.id} 
+                        updateTaskComment={updateTaskComment}
+                        deleteTaskComment={deleteTaskComment}
+                        onCommentsChanged={(updatedTaskFromList) => {
+                          console.log('[TaskModal.tsx] onCommentsChanged (from CommentList) - received updatedTask.comments:', JSON.stringify(updatedTaskFromList?.comments, null, 2));
+                          if (onTaskUpdate) {
+                            onTaskUpdate(updatedTaskFromList);
+                          }
+                        }}
                       />
                     </>
                   )}

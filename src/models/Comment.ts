@@ -14,4 +14,6 @@ export interface Comment {
   updatedAt?: string; // ISO 8601 format, optional for backward compatibility
   /** Optional: ID of the user who created the comment. */
   userId?: string;
+  /** Optional: Flag to indicate if the comment was created by the current user (for local identification). */
+  isOwnComment?: boolean;
 }
