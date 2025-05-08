@@ -153,3 +153,61 @@ interface Project {
 -   `TaskForm.tsx` (仮): タスクの追加・編集フォームを提供します。(Issue #2 で実装予定)
 -   `ProjectList.tsx`: プロジェクト一覧の表示と操作（編集・削除ボタンの配置）を行います。
 -   `ProjectForm.tsx`: プロジェクトの追加・編集フォームを提供します。
+-   `TaskModal.tsx`: タスクの追加・編集、およびコメント表示・追加を行うためのモーダルウィンドウを提供します。Issue #4 でUI更新を行いました。詳細は以下を参照。
+
+    **TaskModal UI 更新 (Issue #4) 詳細**
+
+    **1. 現状の課題**
+    - `TaskModal` 内にタスク編集フォーム (`TaskForm`) とコメント関連のUI (`CommentList`, `CommentForm`) が縦に長く配置されており、情報量が多い場合に一覧性が低い。
+    - タスク編集とコメント確認・投稿という異なるコンテキストの操作が同一階層にあり、ユーザーが目的の操作に集中しづらい可能性がある。
+
+    **2. 改善方針**
+    - Cloudscape Design System の `Tabs` コンポーネントを導入し、モーダル内の情報を「タスク詳細」と「コメント」の2つのタブに明確に分離する。
+    - これにより、ユーザーは一度に表示される情報量が整理され、目的の操作に集中しやすくなる。
+
+    **3. UI設計（TaskModal）**
+
+    *   **3.1. モーダル全体構造**
+        - `Modal` コンポーネント (`@cloudscape-design/components`)
+            - `header`: `title` プロパティ (例: "タスクを編集", "新しいタスク")
+            - `visible`: `visible` プロパティ
+            - `onDismiss`: `onDismiss` プロパティ
+            - `footer`: (変更なし - `TaskForm` 内のボタンが引き続き利用される想定)
+            - `size`: "medium" (現状維持)
+
+    *   **3.2. タブ構成**
+        - `Tabs` コンポーネント (`@cloudscape-design/components`) を `Modal` の直下に配置。
+            - `tabs` プロパティに以下の2つのタブオブジェクトを定義する:
+                1.  **「タスク詳細」タブ:**
+                    *   `label`: "タスク詳細"
+                    *   `id`: "task-details"
+                    *   `content`: `TaskForm` コンポーネントを配置。
+                        *   `onSubmit`: 親から渡される `onSubmit` をそのまま渡す。
+                        *   `onCancel`: 親から渡される `onDismiss` をそのまま渡す（タブUIではモーダル自体を閉じるため）。
+                        *   `initialValues`: `task` プロパティをそのまま渡す。
+                        *   `submitButtonText`: `submitButtonText` プロパティをそのまま渡す。
+                2.  **「コメント」タブ:**
+                    *   `label`: "コメント"
+                    *   `id`: "comments"
+                    *   `content`:
+                        *   `Header` コンポーネント (`variant="h3"`) で "コメント" という小見出しを表示。
+                        *   `CommentForm` コンポーネント:
+                            *   `onSubmit`: コメント追加処理のハンドラ (`handleAddComment`) を渡す。
+                            *   Markdown入力対応: テキストエリア等でMarkdown形式の入力を受け付け、`react-markdown` 等のライブラリを使用して処理する。
+                            *   プレビュー機能: 入力されたMarkdownのリアルタイムプレビュー、またはタブ/ボタン切り替えによるプレビュー機能を提供する。
+                        *   `CommentList` コンポーネント:
+                            *   `comments`: `task.comments || []` を渡す。
+                            *   表示形式: 各コメントを視覚的に分離されたカード形式（枠線、背景、影などを利用）で表示する。
+                            *   Markdownレンダリング: コメント本文をMarkdownとして解釈し、HTMLとしてレンダリングして表示する。
+                            *   編集・削除機能: 各コメントに編集ボタンおよび削除ボタンを配置する。ユーザーは自身のコメントを編集・削除できる。
+                                *   編集時: 対象コメントの内容が入力された編集フォームを表示する。
+                                *   削除時: 実行前に確認ダイアログを表示する。
+
+    *   **3.3. 状態管理**
+        - `TaskModal` コンポーネント内で、現在アクティブなタブIDを管理するために `useState` フックを使用する (例: `[activeTabId, setActiveTabId] = useState('task-details')`)。
+        - `Tabs` コンポーネントの `onChange` イベントで `activeTabId` を更新する。
+
+    **4. 影響範囲**
+    - `TaskModal.tsx`: 主な変更箇所。上記のUI構成を実装。
+    - `TaskForm.tsx`: 基本的に変更なし。タブ内に配置されるだけ。
+    - `CommentList.tsx`, `CommentForm.tsx`: 基本的に変更なし。タブ内に配置されるだけ。

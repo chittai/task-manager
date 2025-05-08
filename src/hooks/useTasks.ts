@@ -131,27 +131,79 @@ export const useTasks = () => {
     return updateTask(id, { status });
   }, [updateTask]);
 
-  const addCommentToTask = useCallback((taskId: string, commentContent: string): void => {
-    const newComment: Comment = {
-      id: uuidv4(),
-      taskId: taskId,
-      content: commentContent,
-      createdAt: new Date().toISOString(),
-      // userId will be handled later if authentication is implemented
-    };
-
+  // --- Comment Operations ---
+  const addCommentToTask = useCallback((taskId: string, content: string): InternalTask | null => {
+    let updatedTask: InternalTask | null = null;
     setTasks(prevTasks =>
       prevTasks.map(task => {
         if (task.id === taskId) {
-          return {
+          const now = new Date().toISOString();
+          const newComment: Comment = {
+            id: uuidv4(),
+            taskId,
+            content,
+            createdAt: now,
+            updatedAt: now, // 作成時もupdatedAtを設定
+            // userId: string; // TODO: Add when auth is implemented
+          };
+          updatedTask = {
             ...task,
             comments: [...(task.comments || []), newComment],
-            updatedAt: new Date(), // Also update the task's updatedAt timestamp
+            updatedAt: new Date(), // Update the task's updatedAt timestamp
           };
+          return updatedTask;
         }
         return task;
       })
     );
+    return updatedTask;
+  }, []);
+
+  const updateTaskComment = useCallback((taskId: string, commentId: string, newContent: string): InternalTask | null => {
+    let updatedTask: InternalTask | null = null;
+    setTasks(prevTasks =>
+      prevTasks.map(task => {
+        if (task.id === taskId) {
+          const updatedComments = (task.comments || []).map(comment => {
+            if (comment.id === commentId) {
+              return {
+                ...comment,
+                content: newContent,
+                updatedAt: new Date().toISOString(), 
+              };
+            }
+            return comment;
+          });
+          updatedTask = {
+            ...task,
+            comments: updatedComments,
+            updatedAt: new Date(), // Update the task's updatedAt timestamp
+          };
+          return updatedTask;
+        }
+        return task;
+      })
+    );
+    return updatedTask;
+  }, []);
+
+  const deleteTaskComment = useCallback((taskId: string, commentId: string): InternalTask | null => {
+    let updatedTask: InternalTask | null = null;
+    setTasks(prevTasks =>
+      prevTasks.map(task => {
+        if (task.id === taskId) {
+          const filteredComments = (task.comments || []).filter(comment => comment.id !== commentId);
+          updatedTask = {
+            ...task,
+            comments: filteredComments,
+            updatedAt: new Date(), // Update the task's updatedAt timestamp
+          };
+          return updatedTask;
+        }
+        return task;
+      })
+    );
+    return updatedTask;
   }, []);
 
   // --- Filtering and Sorting Logic ---
@@ -237,5 +289,7 @@ export const useTasks = () => {
     sortCriteria,
     setSortCriteria,
     addCommentToTask,
+    updateTaskComment,
+    deleteTaskComment,
   };
 };
