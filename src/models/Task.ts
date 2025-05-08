@@ -1,4 +1,5 @@
 import { Comment } from './Comment';
+export type { Comment };
 
 /**
  * Represents the status of a task.
