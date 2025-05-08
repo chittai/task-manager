@@ -7,9 +7,17 @@ import {
   Select,
   Button,
   SpaceBetween,
-  DatePicker
+  DatePicker,
+  SelectProps
 } from '@cloudscape-design/components';
 import { TaskFormData, Task } from '../models/Task';
+
+interface Project {
+  id: string;
+  name: string;
+}
+
+const availableProjects: Project[] = [];
 
 interface TaskFormProps {
   onSubmit: (task: TaskFormData) => void;
@@ -27,10 +35,10 @@ const TaskForm: React.FC<TaskFormProps> = ({
   const [formData, setFormData] = useState<TaskFormData>({
     title: initialTask?.title || '',
     description: initialTask?.description || '',
-    status: initialTask?.status || 'todo',
+    status: initialTask?.status || 'inbox',
     priority: initialTask?.priority || 'medium',
     dueDate: initialTask?.dueDate || undefined,
-    projectId: initialTask?.projectId,
+    projectId: initialTask?.projectId || undefined,
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -39,18 +47,25 @@ const TaskForm: React.FC<TaskFormProps> = ({
     setFormData({
       title: initialTask?.title || '',
       description: initialTask?.description || '',
-      status: initialTask?.status || 'todo',
+      status: initialTask?.status || 'inbox',
       priority: initialTask?.priority || 'medium',
       dueDate: initialTask?.dueDate || undefined,
-      projectId: initialTask?.projectId,
+      projectId: initialTask?.projectId || undefined,
     });
   }, [initialTask]);
 
   const handleChange = (field: keyof TaskFormData, value: any) => {
-    setFormData(prev => ({
-      ...prev,
-      [field]: value
-    }));
+    if (field === 'projectId') {
+      setFormData(prev => ({
+        ...prev,
+        projectId: value === "" ? undefined : value
+      }));
+    } else {
+      setFormData(prev => ({
+        ...prev,
+        [field]: value
+      }));
+    }
 
     if (errors[field]) {
       setErrors(prev => ({
@@ -76,6 +91,13 @@ const TaskForm: React.FC<TaskFormProps> = ({
       onSubmit(formData);
     }
   };
+
+  const projectOptions: SelectProps.Option[] = [
+    { label: "プロジェクトを選択", value: "" },
+    ...availableProjects.map(p => ({ label: p.name, value: p.id }))
+  ];
+
+  const selectedProjectOption = projectOptions.find(opt => opt.value === formData.projectId) || projectOptions[0];
 
   return (
     <Form
@@ -127,6 +149,17 @@ const TaskForm: React.FC<TaskFormProps> = ({
             selectedOption={{ value: formData.priority, label: priorityLabels[formData.priority] }}
             onChange={e => handleChange('priority', e.detail.selectedOption.value as Task['priority'])}
             options={Object.entries(priorityLabels).map(([value, label]) => ({ value: value as Task['priority'], label }))}
+          />
+        </FormField>
+
+        <FormField
+          label="プロジェクト"
+        >
+          <Select
+            selectedOption={selectedProjectOption}
+            onChange={e => handleChange('projectId', e.detail.selectedOption.value as string)}
+            options={projectOptions}
+            placeholder="プロジェクトを選択"
           />
         </FormField>
 
