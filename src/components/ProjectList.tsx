@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useProjects } from '../hooks/useProjects';
 import { Project } from '../models/Project';
-import { ProjectForm } from './ProjectForm'; // Import the form component
+import ProjectForm from './ProjectForm'; // Import the form component
 
 interface ProjectListProps {
   // Add any specific props needed for the list, e.g., filtering
@@ -66,7 +66,7 @@ export const ProjectList: React.FC<ProjectListProps> = () => {
         <ProjectForm
           onSubmit={handleFormSubmit}
           onCancel={handleCancelForm}
-          projectToEdit={editingProject}
+          initialProject={editingProject}
         />
       )}
 
