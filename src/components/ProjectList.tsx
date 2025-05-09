@@ -1,10 +1,20 @@
 import React, { useState } from 'react';
+import {
+  Table, 
+  Box, 
+  Button, 
+  Header, 
+  SpaceBetween, 
+  Pagination, 
+  CollectionPreferences, 
+  Modal, 
+} from '@cloudscape-design/components';
 import { useProjects } from '../hooks/useProjects';
 import { Project } from '../models/Project';
-import ProjectForm from './ProjectForm'; // Import the form component
+import ProjectModal from './ProjectModal'; 
 
 interface ProjectListProps {
-  // Add any specific props needed for the list, e.g., filtering
+  // 必要に応じてpropsを追加
 }
 
 export const ProjectList: React.FC<ProjectListProps> = () => {
@@ -17,78 +27,163 @@ export const ProjectList: React.FC<ProjectListProps> = () => {
     deleteProject,
   } = useProjects();
 
-  const [editingProject, setEditingProject] = useState<Project | undefined>(undefined);
-  const [showCreateForm, setShowCreateForm] = useState<boolean>(false);
+  const [selectedItems, setSelectedItems] = useState<Project[]>([]);
+  const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
+  const [projectToEdit, setProjectToEdit] = useState<Project | undefined>(undefined);
+  const [showDeleteConfirmModal, setShowDeleteConfirmModal] = useState<boolean>(false);
+  const [projectToDelete, setProjectToDelete] = useState<Project | undefined>(undefined);
 
-  const handleEditClick = (project: Project) => {
-    setEditingProject(project);
-    setShowCreateForm(false); // Hide create form if editing
+  const handleOpenCreateModal = () => {
+    setProjectToEdit(undefined);
+    setIsModalOpen(true);
   };
 
-  const handleDeleteClick = (projectId: string) => {
-    if (window.confirm('Are you sure you want to delete this project? This action cannot be undone.')) {
-      deleteProject(projectId);
+  const handleOpenEditModal = (project: Project) => {
+    setProjectToEdit(project);
+    setIsModalOpen(true);
+  };
+
+  const handleCloseModal = () => {
+    setIsModalOpen(false);
+    setProjectToEdit(undefined); 
+  };
+
+  const handleDeleteClick = (project: Project) => {
+    setProjectToDelete(project);
+    setShowDeleteConfirmModal(true);
+  };
+
+  const confirmDeleteProject = async () => {
+    if (projectToDelete) {
+      try {
+        await deleteProject(projectToDelete.id);
+      } catch (err) {
+        console.error("Failed to delete project:", err);
+        // エラー通知
+      }
+      setProjectToDelete(undefined);
+      setShowDeleteConfirmModal(false);
     }
   };
-
-  const handleFormSubmit = (projectData: Omit<Project, 'id' | 'createdAt' | 'updatedAt'>) => {
-    if (editingProject) {
-      updateProject(editingProject.id, projectData);
-      setEditingProject(undefined); // Exit edit mode
-    } else {
-      createProject(projectData);
-      setShowCreateForm(false); // Hide create form after adding
-    }
-  };
-
-  const handleCancelForm = () => {
-    setEditingProject(undefined);
-    setShowCreateForm(false);
-  };
-
-  if (loading) {
-    return <p>Loading projects...</p>;
-  }
 
   if (error) {
-    return <p style={{ color: 'red' }}>Error loading projects: {error}</p>;
+    return <Box color="text-status-error">Error loading projects: {error}</Box>;
   }
 
   return (
-    <div style={{ padding: '1rem' }}>
-      <h2>Projects</h2>
-      <button onClick={() => { setShowCreateForm(true); setEditingProject(undefined); }} style={{ marginBottom: '1rem' }}>
-        Add New Project
-      </button>
+    <Box padding={{ vertical: 'm', horizontal: 'l' }}>
+      <Table
+        selectedItems={selectedItems}
+        onSelectionChange={({ detail }) => setSelectedItems(detail.selectedItems)}
+        loading={loading}
+        items={projects}
+        columnDefinitions={[
+          {
+            id: 'name',
+            header: 'Project Name',
+            cell: (item: Project) => item.name,
+            sortingField: 'name',
+            isRowHeader: true,
+          },
+          {
+            id: 'description',
+            header: 'Description',
+            cell: (item: Project) => item.description || '-',
+            sortingField: 'description',
+          },
+          {
+            id: 'createdAt',
+            header: 'Created At',
+            cell: (item: Project) => new Date(item.createdAt).toLocaleDateString(),
+            sortingField: 'createdAt',
+          },
+          {
+            id: 'updatedAt',
+            header: 'Updated At',
+            cell: (item: Project) => new Date(item.updatedAt).toLocaleDateString(),
+            sortingField: 'updatedAt',
+          },
+          {
+            id: 'actions',
+            header: 'Actions',
+            cell: (item: Project) => (
+              <SpaceBetween direction="horizontal" size="xs">
+                <Button variant="link" onClick={() => handleOpenEditModal(item)}>Edit</Button>
+                <Button variant="link" onClick={() => handleDeleteClick(item)}>Delete</Button>
+              </SpaceBetween>
+            ),
+          },
+        ]}
+        stickyHeader
+        header={
+          <Header
+            counter={projects.length ? `(${projects.length})` : ''}
+            actions={
+              <Button variant="primary" onClick={handleOpenCreateModal}>
+                Create New Project
+              </Button>
+            }
+          >
+            Projects
+          </Header>
+        }
+        empty={
+          <Box textAlign="center" color="inherit">
+            <b>No projects</b>
+            <Box padding={{ bottom: 's' }} variant="p" color="inherit">
+              No projects to display.
+            </Box>
+            <Button onClick={handleOpenCreateModal}>Create project</Button>
+          </Box>
+        }
+        // TODO: Pagination, CollectionPreferences などの設定を追加
+      />
 
-      {/* Display Create or Edit Form */} 
-      {(showCreateForm || editingProject) && (
-        <ProjectForm
-          onSubmit={handleFormSubmit}
-          onCancel={handleCancelForm}
-          initialProject={editingProject}
+      {isModalOpen && (
+        <ProjectModal
+          visible={isModalOpen}
+          onDismiss={handleCloseModal}
+          onAddProject={async (formData) => {
+            try {
+              await createProject(formData);
+              handleCloseModal();
+              return null; // ProjectModalProps の戻り値型に合わせる
+            } catch (err) {
+              console.error("Failed to create project:", err);
+              throw err; // エラーを再スローするか、エラーに応じた値を返す
+            }
+          }}
+          onUpdateProject={async (id, formData) => {
+            try {
+              await updateProject(id, formData);
+              handleCloseModal();
+              return null; // ProjectModalProps の戻り値型に合わせる
+            } catch (err) {
+              console.error("Failed to update project:", err);
+              throw err; // エラーを再スローするか、エラーに応じた値を返す
+            }
+          }}
+          project={projectToEdit} // projectToEdit を project プロパティに渡す
         />
       )}
 
-      {/* Project List */}
-      {projects.length === 0 && !loading ? (
-        <p>No projects found. Add one to get started!</p>
-      ) : (
-        <ul style={{ listStyle: 'none', padding: 0 }}>
-          {projects.map((project) => (
-            <li key={project.id} style={{ border: '1px solid #eee', padding: '1rem', marginBottom: '0.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div>
-                <h3 style={{ margin: '0 0 0.5rem 0' }}>{project.name}</h3>
-                <p style={{ margin: 0, color: '#555' }}>{project.description || 'No description'}</p>
-              </div>
-              <div>
-                <button onClick={() => handleEditClick(project)} style={{ marginRight: '0.5rem' }}>Edit</button>
-                <button onClick={() => handleDeleteClick(project.id)}>Delete</button>
-              </div>
-            </li>
-          ))}
-        </ul>
+      {showDeleteConfirmModal && projectToDelete && (
+        <Modal
+          visible={showDeleteConfirmModal}
+          onDismiss={() => setShowDeleteConfirmModal(false)}
+          header={`Delete Project: ${projectToDelete.name}`}
+          footer={
+            <Box float="right">
+              <SpaceBetween direction="horizontal" size="xs">
+                <Button variant="link" onClick={() => setShowDeleteConfirmModal(false)}>Cancel</Button>
+                <Button variant="primary" onClick={confirmDeleteProject}>Delete</Button>
+              </SpaceBetween>
+            </Box>
+          }
+        >
+          Are you sure you want to delete the project "{projectToDelete.name}"? This action cannot be undone.
+        </Modal>
       )}
-    </div>
+    </Box>
   );
 };
