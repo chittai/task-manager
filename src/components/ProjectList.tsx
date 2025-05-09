@@ -12,7 +12,7 @@ export const ProjectList: React.FC<ProjectListProps> = () => {
     projects,
     loading,
     error,
-    addProject,
+    createProject,
     updateProject,
     deleteProject,
   } = useProjects();
@@ -33,10 +33,10 @@ export const ProjectList: React.FC<ProjectListProps> = () => {
 
   const handleFormSubmit = (projectData: Omit<Project, 'id' | 'createdAt' | 'updatedAt'>) => {
     if (editingProject) {
-      updateProject({ ...editingProject, ...projectData });
+      updateProject(editingProject.id, projectData);
       setEditingProject(undefined); // Exit edit mode
     } else {
-      addProject(projectData);
+      createProject(projectData);
       setShowCreateForm(false); // Hide create form after adding
     }
   };
