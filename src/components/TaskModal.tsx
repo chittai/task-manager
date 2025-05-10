@@ -5,11 +5,13 @@ import {
   SpaceBetween,
   Tabs,
 } from '@cloudscape-design/components';
-import { Task, TaskFormData, Comment as CommentType } from '../models/Task';
+import { Task, TaskFormData, Comment as CommentType } from '../models/Task'; 
+import { Project } from '../models/Project'; 
 import TaskForm from './TaskForm';
 import CommentList from './CommentList';
 import CommentForm from './CommentForm';
 import { InternalTask } from '../hooks/useTasks';
+import { useProjects } from '../hooks/useProjects'; 
 
 interface TaskModalProps {
   visible: boolean;
@@ -34,6 +36,12 @@ const TaskModal: React.FC<TaskModalProps> = ({
 }) => {
   const [activeTabId, setActiveTabId] = useState('task-details');
   const [currentTask, setCurrentTask] = useState<Task | InternalTask | null | undefined>(existingTask);
+
+  const { 
+    projects, 
+    loading: projectsLoading, 
+    error: projectsError 
+  } = useProjects();
 
   useEffect(() => {
     setCurrentTask(existingTask);
@@ -114,6 +122,9 @@ const TaskModal: React.FC<TaskModalProps> = ({
                 initialTask={currentTask ? (('createdAt' in currentTask && typeof currentTask.createdAt !== 'string') ? { ...currentTask, createdAt: (currentTask.createdAt as Date).toISOString(), updatedAt: (currentTask.updatedAt as Date).toISOString(), dueDate: (currentTask.dueDate as Date)?.toISOString() } : currentTask as Task) : undefined}
                 onSubmit={handleTaskFormSubmit}
                 onCancel={onDismiss}
+                projects={projects}
+                projectsLoading={projectsLoading}
+                projectsError={projectsError}
               />
             ),
           },

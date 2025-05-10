@@ -7,11 +7,24 @@ import { v4 as uuidv4 } from 'uuid';
 const STORAGE_KEY = 'tasks';
 
 // --- Internal Task Type (uses Date objects for dates) ---
-export interface InternalTask extends Omit<Task, 'dueDate' | 'createdAt' | 'updatedAt'> {
+export interface InternalTask extends Omit<Task, 'dueDate' | 'createdAt' | 'updatedAt' | 'projectName'> { 
   dueDate?: Date;
   createdAt: Date;
   updatedAt: Date;
+  // projectId は Task から継承される
 }
+
+// Helper function to convert InternalTask to Task for the UI
+const toAppTask = (internalTask: InternalTask, projects: {id: string, name: string}[] = []): Task => {
+  const project = projects.find(p => p.id === internalTask.projectId);
+  return {
+    ...internalTask,
+    createdAt: internalTask.createdAt.toISOString(),
+    updatedAt: internalTask.updatedAt.toISOString(),
+    dueDate: internalTask.dueDate?.toISOString(),
+    projectName: project ? project.name : undefined,
+  };
+};
 
 // --- Types for Filtering and Sorting ---
 export type TaskSortableField = 'title' | 'status' | 'priority' | 'dueDate' | 'createdAt' | 'updatedAt';
@@ -47,19 +60,58 @@ export const useTasks = () => {
       try {
         const savedTasks = localStorage.getItem(STORAGE_KEY);
         if (savedTasks) {
-          const parsedTasks = JSON.parse(savedTasks) as Task[]; // Tasks from storage have string dates
+          const parsedTasks = JSON.parse(savedTasks) as Task[]; 
           const internalTasks = parsedTasks.map((task): InternalTask => ({
             ...task,
             createdAt: new Date(task.createdAt),
             updatedAt: new Date(task.updatedAt),
             dueDate: task.dueDate ? new Date(task.dueDate) : undefined,
+            // projectId will be spread from task
           }));
           setTasks(internalTasks);
+        } else {
+          // ローカルストレージが空の場合、初期サンプルデータを設定
+          const now = new Date();
+          const initialInternalTasks: InternalTask[] = [
+            {
+              id: uuidv4(),
+              title: 'ドキュメントを読む', 
+              description: '新しいライブラリのドキュメントを確認する。',
+              status: 'todo',
+              priority: 'medium',
+              createdAt: now,
+              updatedAt: now,
+              projectId: 'project-1', // サンプルプロジェクトID
+              comments: [],
+            },
+            {
+              id: uuidv4(),
+              title: 'UIコンポーネント設計',
+              description: '新しいダッシュボードのUIコンポーネントを設計する。',
+              status: 'in-progress',
+              priority: 'high',
+              createdAt: new Date(now.getTime() - 86400000), // 1日前
+              updatedAt: now,
+              projectId: 'project-2', // サンプルプロジェクトID
+              comments: [],
+            },
+            {
+              id: uuidv4(),
+              title: 'バグ修正',
+              description: '報告されたログイン関連のバグを修正する。',
+              status: 'done',
+              priority: 'high',
+              createdAt: new Date(now.getTime() - 172800000), // 2日前
+              updatedAt: new Date(now.getTime() - 86400000), // 1日前
+              comments: [], // プロジェクトなし
+            },
+          ];
+          setTasks(initialInternalTasks);
         }
       } catch (err) {
         console.error('Failed to parse tasks from localStorage:', err);
         setError('Failed to load tasks.');
-        setTasks([]); // Fallback to empty array
+        setTasks([]); 
       }
       setLoading(false);
     };
@@ -70,9 +122,10 @@ export const useTasks = () => {
   useEffect(() => {
     if (!loading) {
       try {
-        // When saving, Date objects are automatically converted to ISO strings by JSON.stringify
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(tasks));
-        setError(null); // Clear error on successful save
+        // InternalTask を Task (文字列日付) に変換して保存
+        const tasksToSave = tasks.map(internalTask => toAppTask(internalTask)); // use dummy projects array for now
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(tasksToSave));
+        setError(null); 
       } catch (err) {
         console.error('Failed to save tasks to localStorage:', err);
         setError('Failed to save tasks.');
@@ -81,7 +134,7 @@ export const useTasks = () => {
   }, [tasks, loading]);
 
   // --- CRUD Operations ---
-  const addTask = useCallback((taskData: TaskFormData): Promise<InternalTask | null> => {
+  const addTask = useCallback((taskData: TaskFormData): Promise<Task | null> => { 
     const now = new Date();
     const newTask: InternalTask = {
       id: uuidv4(),
@@ -92,59 +145,54 @@ export const useTasks = () => {
       dueDate: taskData.dueDate ? new Date(taskData.dueDate) : undefined,
       createdAt: now,
       updatedAt: now,
-      projectId: taskData.projectId,
+      projectId: taskData.projectId, 
       comments: [], 
     };
     setTasks(prevTasks => [...prevTasks, newTask]);
-    return Promise.resolve(newTask);
+    return Promise.resolve(toAppTask(newTask)); 
   }, []);
 
-  const updateTask = useCallback((id: string, taskData: Partial<TaskFormData>): Promise<InternalTask | null> => {
-    let updatedTaskResult: InternalTask | null = null;
+  const updateTask = useCallback((id: string, taskData: Partial<TaskFormData>): Promise<Task | null> => { 
+    let updatedAppTask: Task | null = null;
     setTasks(prevTasks =>
       prevTasks.map(task => {
         if (task.id === id) {
-          const { dueDate, ...restOfTaskData } = taskData;
+          const { dueDate, projectId, ...restOfTaskData } = taskData;
           const updatedInternalTask: InternalTask = {
             ...task,
             ...restOfTaskData,
             updatedAt: new Date(),
           };
-          // Only update dueDate if it's explicitly passed in taskData
           if (taskData.hasOwnProperty('dueDate')) {
             updatedInternalTask.dueDate = dueDate ? new Date(dueDate) : undefined;
           }
-          updatedTaskResult = updatedInternalTask;
+          if (taskData.hasOwnProperty('projectId')) { 
+            updatedInternalTask.projectId = projectId;
+          }
+          updatedAppTask = toAppTask(updatedInternalTask); 
           return updatedInternalTask;
         }
         return task;
       })
     );
-    return Promise.resolve(updatedTaskResult);
+    return Promise.resolve(updatedAppTask);
   }, []);
 
   const deleteTask = useCallback((id: string): Promise<void> => {
     setTasks(prevTasks => {
       const updatedTasks = prevTasks.filter(task => task.id !== id);
-      try {
-        // タスク削除時に即座にlocalStorageを更新
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(updatedTasks));
-        // setError(null); // setError は useEffect に任せるか、別途管理
-      } catch (err) {
-        console.error('Failed to save tasks to localStorage after delete:', err);
-        // setError('Failed to save tasks after deletion.'); // 同上
-      }
+      // localStorageへの保存はuseEffectに任せる
       return updatedTasks;
     });
     return Promise.resolve();
   }, []);
 
-  const changeTaskStatus = useCallback((id: string, status: TaskStatus): Promise<InternalTask | null> => {
+  const changeTaskStatus = useCallback(async (id: string, status: TaskStatus): Promise<Task | null> => { 
     return updateTask(id, { status });
   }, [updateTask]);
 
   // --- Comment Operations ---
-  const addCommentToTask = useCallback((taskId: string, commentContent: string): Promise<InternalTask | null> => {
+  const addCommentToTask = useCallback(async (taskId: string, commentContent: string): Promise<Task | null> => { 
     const taskIndex = tasks.findIndex(t => t.id === taskId);
     if (taskIndex === -1) {
       console.error(`[useTasks.ts] addCommentToTask: Task with id ${taskId} not found`);
@@ -162,16 +210,12 @@ export const useTasks = () => {
     };
 
     const updatedComments = [...(originalTask.comments || []), newComment];
-    console.log('[useTasks.ts] addCommentToTask - originalTask.comments before add:', JSON.stringify(originalTask.comments, null, 2)); 
-    console.log('[useTasks.ts] addCommentToTask - newComment:', JSON.stringify(newComment, null, 2)); 
-    console.log('[useTasks.ts] addCommentToTask - updatedComments after add:', JSON.stringify(updatedComments, null, 2));
 
     const updatedTaskInstance: InternalTask = {
       ...originalTask,
       comments: updatedComments,
       updatedAt: new Date(),
     };
-    console.log('[useTasks.ts] addCommentToTask - updatedTaskInstance before setTasks:', JSON.stringify(updatedTaskInstance, null, 2));
 
     setTasks(prevTasks => {
       const newTasks = [...prevTasks];
@@ -182,17 +226,16 @@ export const useTasks = () => {
       return newTasks;
     });
 
-    return Promise.resolve(updatedTaskInstance); 
+    return Promise.resolve(toAppTask(updatedTaskInstance)); 
   }, [tasks]);
 
-  const updateTaskComment = useCallback((taskId: string, commentId: string, newContent: string): Promise<InternalTask | null> => {
+  const updateTaskComment = useCallback(async (taskId: string, commentId: string, newContent: string): Promise<Task | null> => { 
     const taskIndex = tasks.findIndex(t => t.id === taskId);
     if (taskIndex === -1) {
       console.error(`[useTasks.ts] updateTaskComment: Task with id ${taskId} not found`);
       return Promise.resolve(null);
     }
     const originalTask = tasks[taskIndex];
-    console.log('[useTasks.ts] updateTaskComment - originalTask.comments:', JSON.stringify(originalTask.comments, null, 2));
 
     const updatedComments = (originalTask.comments || []).map(comment => {
       if (comment.id === commentId) {
@@ -204,15 +247,13 @@ export const useTasks = () => {
       }
       return comment;
     });
-    console.log('[useTasks.ts] updateTaskComment - mapped updatedComments:', JSON.stringify(updatedComments, null, 2));
 
     const updatedTaskInstance: InternalTask = {
       ...originalTask,
       comments: updatedComments,
       updatedAt: new Date(),
     };
-    console.log('[useTasks.ts] updateTaskComment - updatedTaskInstance before setTasks:', JSON.stringify(updatedTaskInstance, null, 2));
-    
+
     setTasks(prevTasks => {
       const newTasks = [...prevTasks];
       const currentTaskIndex = newTasks.findIndex(t => t.id === taskId);
@@ -222,26 +263,24 @@ export const useTasks = () => {
       return newTasks;
     });
 
-    return Promise.resolve(updatedTaskInstance);
+    return Promise.resolve(toAppTask(updatedTaskInstance)); 
   }, [tasks]);
 
-  const deleteTaskComment = useCallback((taskId: string, commentId: string): Promise<InternalTask | null> => {
+  const deleteTaskComment = useCallback(async (taskId: string, commentId: string): Promise<Task | null> => { 
     const taskIndex = tasks.findIndex(t => t.id === taskId);
     if (taskIndex === -1) {
       console.error(`[useTasks.ts] deleteTaskComment: Task with id ${taskId} not found`);
       return Promise.resolve(null);
     }
     const originalTask = tasks[taskIndex];
+
     const updatedComments = (originalTask.comments || []).filter(comment => comment.id !== commentId);
-    console.log('[useTasks.ts] deleteTaskComment - originalTask.comments:', JSON.stringify(originalTask.comments, null, 2));
-    console.log('[useTasks.ts] deleteTaskComment - filtered updatedComments:', JSON.stringify(updatedComments, null, 2));
 
     const updatedTaskInstance: InternalTask = {
       ...originalTask,
       comments: updatedComments,
       updatedAt: new Date(),
     };
-    console.log('[useTasks.ts] deleteTaskComment - updatedTaskInstance before setTasks:', JSON.stringify(updatedTaskInstance, null, 2));
 
     setTasks(prevTasks => {
       const newTasks = [...prevTasks];
@@ -251,92 +290,77 @@ export const useTasks = () => {
       }
       return newTasks;
     });
-
-    return Promise.resolve(updatedTaskInstance);
+    return Promise.resolve(toAppTask(updatedTaskInstance)); 
   }, [tasks]);
 
   // --- Filtering and Sorting Logic ---
-  const priorityOrder: Record<Task['priority'], number> = {
-    low: 0,
-    medium: 1,
-    high: 2,
-  };
-
-  const displayTasks = useMemo(() => {
-    let tempTasks = [...tasks]; // tasks are InternalTask[]
+  const filteredAndSortedTasks = useMemo(() => {
+    let processedTasks = [...tasks]; 
 
     // Filtering
     if (filterCriteria.status) {
-      tempTasks = tempTasks.filter(task => task.status === filterCriteria.status);
-    }
-    if (filterCriteria.projectId) {
-      tempTasks = tempTasks.filter(task => task.projectId === filterCriteria.projectId);
+      processedTasks = processedTasks.filter(task => task.status === filterCriteria.status);
     }
     if (filterCriteria.priority) {
-      tempTasks = tempTasks.filter(task => task.priority === filterCriteria.priority);
+      processedTasks = processedTasks.filter(task => task.priority === filterCriteria.priority);
+    }
+    if (filterCriteria.projectId) {
+      processedTasks = processedTasks.filter(task => task.projectId === filterCriteria.projectId);
     }
     if (filterCriteria.searchTerm) {
       const searchTermLower = filterCriteria.searchTerm.toLowerCase();
-      tempTasks = tempTasks.filter(task => 
+      processedTasks = processedTasks.filter(task => 
         task.title.toLowerCase().includes(searchTermLower) || 
-        (task.description && task.description.toLowerCase().includes(searchTermLower))
+        task.description.toLowerCase().includes(searchTermLower)
       );
     }
 
     // Sorting
     if (sortCriteria) {
-      tempTasks.sort((a, b) => {
+      processedTasks.sort((a, b) => {
         const field = sortCriteria.field;
         const direction = sortCriteria.direction === 'asc' ? 1 : -1;
 
-        if (field === 'priority') {
-          const priorityA = priorityOrder[a.priority];
-          const priorityB = priorityOrder[b.priority];
-          return (priorityA - priorityB) * direction;
+        // Handle undefined or null values for sorting, placing them at the end for 'asc'
+        // and at the beginning for 'desc'. For dates, null/undefined means 'far in the future' or 'not set'.
+        const valA = a[field];
+        const valB = b[field];
+
+        if (valA == null && valB == null) return 0;
+        if (valA == null) return 1 * direction; 
+        if (valB == null) return -1 * direction;
+
+        if (field === 'dueDate' || field === 'createdAt' || field === 'updatedAt') {
+          // Ensure dates are compared correctly
+          const dateA = (valA as Date).getTime();
+          const dateB = (valB as Date).getTime();
+          return (dateA - dateB) * direction;
         }
-
-        let valA = a[field];
-        let valB = b[field];
-
-        if (valA instanceof Date && valB instanceof Date) {
-          return (valA.getTime() - valB.getTime()) * direction;
-        } else if (valA instanceof Date) { // valB is undefined or not a Date
-          return -1 * direction; // Dates first
-        } else if (valB instanceof Date) { // valA is undefined or not a Date
-          return 1 * direction;  // Dates first
+        if (typeof valA === 'string' && typeof valB === 'string') {
+          return valA.localeCompare(valB) * direction;
         }
-
-        // Handle undefined or null for string or other comparisons
-        const strValA = valA === undefined || valA === null ? '' : String(valA);
-        const strValB = valB === undefined || valB === null ? '' : String(valB);
-
-        if (typeof strValA === 'string' && typeof strValB === 'string') {
-          return strValA.localeCompare(strValB) * direction;
+        if (typeof valA === 'number' && typeof valB === 'number') {
+          return (valA - valB) * direction;
         }
-        // Fallback for other types, though typically covered by Date/string above
-        if (strValA < strValB) return -1 * direction;
-        if (strValA > strValB) return 1 * direction;
-        return 0;
+        // Fallback for other types or mixed types (less ideal but prevents crashes)
+        return String(valA).localeCompare(String(valB)) * direction;
       });
     }
+    return processedTasks; 
+  }, [tasks, filterCriteria, sortCriteria]);
 
-    return tempTasks;
-  }, [tasks, filterCriteria, sortCriteria, priorityOrder]); 
-
-  // --- Return Values ---
   return {
-    tasks: displayTasks, 
-    allTasks: tasks, 
+    tasks: filteredAndSortedTasks.map(internalTask => toAppTask(internalTask)), 
     loading,
     error,
-    addTask,
-    updateTask,
-    deleteTask,
-    changeTaskStatus,
     filterCriteria,
     setFilterCriteria,
     sortCriteria,
     setSortCriteria,
+    addTask,
+    updateTask,
+    deleteTask,
+    changeTaskStatus,
     addCommentToTask,
     updateTaskComment,
     deleteTaskComment,

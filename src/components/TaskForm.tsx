@@ -1,194 +1,228 @@
 import React, { useState, useEffect } from 'react';
 import {
-  Form,
   FormField,
   Input,
-  Textarea,
   Select,
+  DatePicker,
+  Textarea,
   Button,
   SpaceBetween,
-  DatePicker,
-  SelectProps
+  Form,
+  Container,
+  Header,
+  SelectProps,
 } from '@cloudscape-design/components';
-import { TaskFormData, Task } from '../models/Task';
-
-interface Project {
-  id: string;
-  name: string;
-}
-
-const availableProjects: Project[] = [];
+import { Task, TaskFormData, TaskStatus, TaskPriority } from '../models/Task';
+import { Project } from '../models/Project';
 
 interface TaskFormProps {
-  onSubmit: (task: TaskFormData) => void;
+  initialTask?: Task | null;
+  onSubmit: (formData: TaskFormData) => void;
   onCancel: () => void;
-  initialTask?: Task;
+  submitButtonText?: string;
+  projects?: Project[];
+  projectsLoading?: boolean;
+  projectsError?: string | null;
 }
 
 const TaskForm: React.FC<TaskFormProps> = ({
+  initialTask,
   onSubmit,
   onCancel,
-  initialTask,
+  submitButtonText = initialTask ? '更新' : '作成',
+  projects = [],
+  projectsLoading = false,
+  projectsError = null,
 }) => {
-  const submitButtonText = initialTask ? '変更を保存' : 'タスクを作成';
-
-  const [formData, setFormData] = useState<TaskFormData>({
-    title: initialTask?.title || '',
-    description: initialTask?.description || '',
-    status: initialTask?.status || 'inbox',
-    priority: initialTask?.priority || 'medium',
-    dueDate: initialTask?.dueDate || undefined,
-    projectId: initialTask?.projectId || undefined,
+  const [formData, setFormData] = useState<TaskFormData>(() => {
+    const defaults: TaskFormData = {
+      title: '',
+      description: '',
+      status: 'inbox' as TaskStatus,
+      priority: 'medium' as TaskPriority,
+      dueDate: '',
+      projectId: '',
+      projectName: '',
+    };
+    if (initialTask) {
+      return {
+        title: initialTask.title || '',
+        description: initialTask.description || '',
+        status: initialTask.status || ('inbox' as TaskStatus),
+        priority: initialTask.priority || ('medium' as TaskPriority),
+        dueDate: initialTask.dueDate || '',
+        projectId: initialTask.projectId || '',
+        projectName: initialTask.projectName || '',
+      };
+    }
+    return defaults;
   });
 
-  const [errors, setErrors] = useState<Record<string, string>>({});
-
   useEffect(() => {
-    setFormData({
-      title: initialTask?.title || '',
-      description: initialTask?.description || '',
-      status: initialTask?.status || 'inbox',
-      priority: initialTask?.priority || 'medium',
-      dueDate: initialTask?.dueDate || undefined,
-      projectId: initialTask?.projectId || undefined,
-    });
+    if (initialTask) {
+      setFormData({
+        title: initialTask.title || '',
+        description: initialTask.description || '',
+        status: initialTask.status || ('inbox' as TaskStatus),
+        priority: initialTask.priority || ('medium' as TaskPriority),
+        dueDate: initialTask.dueDate || '',
+        projectId: initialTask.projectId || '',
+        projectName: initialTask.projectName || '',
+      });
+    } else {
+      setFormData({
+        title: '',
+        description: '',
+        status: 'inbox' as TaskStatus,
+        priority: 'medium' as TaskPriority,
+        dueDate: '',
+        projectId: '',
+        projectName: '',
+      });
+    }
   }, [initialTask]);
 
-  const handleChange = (field: keyof TaskFormData, value: any) => {
-    if (field === 'projectId') {
-      setFormData(prev => ({
+  const handleChange = (
+    field: keyof TaskFormData,
+    value: string | TaskStatus | TaskPriority
+  ) => {
+    setFormData((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const handleProjectChange = (selectedOption: SelectProps.Option | null) => {
+    if (selectedOption) {
+      setFormData((prev) => ({
         ...prev,
-        projectId: value === "" ? undefined : value
+        projectId: selectedOption.value || '',
+        projectName: selectedOption.label || '',
       }));
     } else {
-      setFormData(prev => ({
+      setFormData((prev) => ({
         ...prev,
-        [field]: value
-      }));
-    }
-
-    if (errors[field]) {
-      setErrors(prev => ({
-        ...prev,
-        [field]: ''
+        projectId: '',
+        projectName: '',
       }));
     }
   };
 
-  const validate = (): boolean => {
-    const newErrors: Record<string, string> = {};
-
-    if (!formData.title.trim()) {
-      newErrors.title = 'タイトルは必須です';
-    }
-
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
-
-  const handleFormSubmit = () => {
-    if (validate()) {
-      onSubmit(formData);
-    }
+  const handleSubmit = (event: React.FormEvent) => {
+    event.preventDefault();
+    onSubmit(formData);
   };
 
   const projectOptions: SelectProps.Option[] = [
-    { label: "プロジェクトを選択", value: "" },
-    ...availableProjects.map(p => ({ label: p.name, value: p.id }))
+    { label: 'プロジェクトなし', value: '' },
+    ...projects.map((p) => ({ label: p.name, value: p.id })),
   ];
 
-  const selectedProjectOption = projectOptions.find(opt => opt.value === formData.projectId) || projectOptions[0];
+  const selectedProjectOption = projectOptions.find(
+    (option) => option.value === formData.projectId
+  ) || null;
 
   return (
-    <Form
-      actions={
-        <SpaceBetween direction="horizontal" size="xs">
-          <Button variant="link" onClick={() => onCancel()}>
-            キャンセル
-          </Button>
-          <Button variant="primary" onClick={() => handleFormSubmit()}>
-            {submitButtonText}
-          </Button>
-        </SpaceBetween>
-      }
-    >
-      <SpaceBetween direction="vertical" size="l">
-        <FormField
-          label="タイトル"
-          errorText={errors.title}
-        >
-          <Input
-            value={formData.title}
-            onChange={e => handleChange('title', e.detail.value)}
-          />
-        </FormField>
+    <form onSubmit={handleSubmit}>
+      <Form
+        actions={(
+          <SpaceBetween direction="horizontal" size="xs">
+            <Button variant="link" onClick={onCancel}>
+              キャンセル
+            </Button>
+            <Button variant="primary">
+              {submitButtonText}
+            </Button>
+          </SpaceBetween>
+        )}
+        header={<Header variant="h2">タスク情報</Header>}
+      >
+        <Container>
+          <SpaceBetween direction="vertical" size="l">
+            <FormField
+              label="タイトル"
+              errorText={!formData.title ? "タイトルは必須です" : ""}
+            >
+              <Input
+                value={formData.title}
+                onChange={({ detail }) => handleChange('title', detail.value)}
+                placeholder="タスクのタイトルを入力"
+              />
+            </FormField>
 
-        <FormField
-          label="説明"
-        >
-          <Textarea
-            value={formData.description}
-            onChange={e => handleChange('description', e.detail.value)}
-          />
-        </FormField>
+            <FormField label="説明">
+              <Textarea
+                value={formData.description}
+                onChange={({ detail }) => handleChange('description', detail.value)}
+                placeholder="タスクの詳細を入力"
+                rows={3}
+              />
+            </FormField>
 
-        <FormField
-          label="ステータス"
-        >
-          <Select
-            selectedOption={{ value: formData.status, label: statusLabels[formData.status] || formData.status }}
-            onChange={e => handleChange('status', e.detail.selectedOption.value as Task['status'])}
-            options={Object.entries(statusLabels).map(([value, label]) => ({ value: value as Task['status'], label }))}
-          />
-        </FormField>
+            <FormField
+              label="プロジェクト"
+              errorText={projectsError ? projectsError : undefined}
+            >
+              <Select
+                selectedOption={selectedProjectOption}
+                onChange={({ detail }) => handleProjectChange(detail.selectedOption)}
+                options={projectOptions}
+                loadingText="プロジェクトを読み込み中..."
+                placeholder="プロジェクトを選択"
+                disabled={projectsLoading}
+                statusType={projectsLoading ? 'loading' : projectsError ? 'error' : 'finished'}
+                empty="利用可能なプロジェクトがありません"
+              />
+            </FormField>
 
-        <FormField
-          label="優先度"
-        >
-          <Select
-            selectedOption={{ value: formData.priority, label: priorityLabels[formData.priority] }}
-            onChange={e => handleChange('priority', e.detail.selectedOption.value as Task['priority'])}
-            options={Object.entries(priorityLabels).map(([value, label]) => ({ value: value as Task['priority'], label }))}
-          />
-        </FormField>
+            <FormField label="ステータス">
+              <Select
+                selectedOption={{
+                  label: formData.status.charAt(0).toUpperCase() + formData.status.slice(1),
+                  value: formData.status,
+                }}
+                onChange={({ detail }) =>
+                  handleChange('status', detail.selectedOption.value as TaskStatus)
+                }
+                options={[
+                  { label: 'Inbox', value: 'inbox' },
+                  { label: 'To Do', value: 'todo' },
+                  { label: 'In Progress', value: 'in-progress' },
+                  { label: 'Done', value: 'done' },
+                  { label: 'Wait On', value: 'wait-on' },
+                ]}
+              />
+            </FormField>
 
-        <FormField
-          label="プロジェクト"
-        >
-          <Select
-            selectedOption={selectedProjectOption}
-            onChange={e => handleChange('projectId', e.detail.selectedOption.value as string)}
-            options={projectOptions}
-            placeholder="プロジェクトを選択"
-          />
-        </FormField>
+            <FormField label="優先度">
+              <Select
+                selectedOption={{
+                  label: formData.priority.charAt(0).toUpperCase() + formData.priority.slice(1),
+                  value: formData.priority,
+                }}
+                onChange={({ detail }) =>
+                  handleChange('priority', detail.selectedOption.value as TaskPriority)
+                }
+                options={[
+                  { label: 'Low', value: 'low' },
+                  { label: 'Medium', value: 'medium' },
+                  { label: 'High', value: 'high' },
+                ]}
+              />
+            </FormField>
 
-        <FormField
-          label="期限"
-        >
-          <DatePicker
-            value={formData.dueDate || ''}
-            onChange={e => handleChange('dueDate', e.detail.value === '' ? undefined : e.detail.value)}
-            placeholder="YYYY/MM/DD"
-          />
-        </FormField>
-      </SpaceBetween>
-    </Form>
+            <FormField label="期限日">
+              <DatePicker
+                value={formData.dueDate || ''}
+                onChange={({ detail }) => handleChange('dueDate', detail.value)}
+                placeholder="YYYY/MM/DD"
+                isDateEnabled={(date) =>
+                  date >= new Date(new Date().setDate(new Date().getDate() - 1))
+                }
+              />
+            </FormField>
+          </SpaceBetween>
+        </Container>
+      </Form>
+    </form>
   );
-};
-
-const statusLabels: Record<Task['status'], string> = {
-  'todo': '未着手',
-  'in-progress': '進行中',
-  'done': '完了',
-  'inbox': '受信箱',
-  'wait-on': '待機中'
-};
-
-const priorityLabels: Record<Task['priority'], string> = {
-  'low': '低',
-  'medium': '中',
-  'high': '高'
 };
 
 export default TaskForm;

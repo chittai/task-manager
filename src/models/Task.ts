@@ -7,34 +7,68 @@ export type { Comment };
 export type TaskStatus = 'todo' | 'in-progress' | 'done' | 'inbox' | 'wait-on';
 
 /**
- * Represents a task.
+ * Represents the priority of a task.
+ */
+export type TaskPriority = 'low' | 'medium' | 'high';
+
+/**
+ * Represents a task history entry.
+ * TODO: Define the actual structure of a task history entry.
+ */
+export interface TaskHistoryEntry {}
+
+/**
+ * Represents a task in the system.
  */
 export interface Task {
+  /**
+   * Unique identifier for the task.
+   */
   id: string;
+  /**
+   * Title of the task.
+   */
   title: string;
+  /**
+   * Detailed description of the task.
+   */
   description: string;
+  /**
+   * Current status of the task.
+   */
   status: TaskStatus;
-  priority: 'low' | 'medium' | 'high';
   /**
-   * Optional: Date when the task is due.
+   * Priority level of the task.
    */
-  dueDate?: string; // ISO 8601 format
+  priority: TaskPriority;
   /**
-   * Timestamp when the task was created.
+   * Optional: Due date for the task, in ISO 8601 format.
    */
-  createdAt: string; // ISO 8601 format
+  dueDate?: string;
   /**
-   * Timestamp when the task was last updated.
+   * Creation timestamp of the task, in ISO 8601 format.
    */
-  updatedAt: string; // ISO 8601 format
+  createdAt: string;
   /**
-   * Optional: ID of the project this task belongs to.
+   * Last update timestamp of the task, in ISO 8601 format.
+   */
+  updatedAt: string;
+  /**
+   * Optional: Identifier of the project this task belongs to.
    */
   projectId?: string;
+  /**
+   * Optional: Name of the project this task belongs to (for display purposes).
+   */
+  projectName?: string;
   /**
    * Optional: List of comments associated with the task.
    */
   comments?: Comment[];
+  /**
+   * Optional: Task history entries.
+   */
+  history?: TaskHistoryEntry[];
 }
 
 export type TaskFormData = Omit<Task, 'id' | 'createdAt' | 'updatedAt'>;
