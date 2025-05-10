@@ -1,19 +1,13 @@
 /**
- * Represents a comment associated with a task.
+ * Represents a comment on a task.
  */
 export interface Comment {
-  /** Unique identifier for the comment. */
   id: string;
-  /** ID of the task this comment belongs to. */
-  taskId: string;
-  /** The content of the comment. */
+  taskId: string; // ID of the task this comment belongs to
   content: string;
-  /** Timestamp when the comment was created. */
   createdAt: string; // ISO 8601 format
-  /** Timestamp when the comment was last updated. */
-  updatedAt?: string; // ISO 8601 format, optional for backward compatibility
-  /** Optional: ID of the user who created the comment. */
-  userId?: string;
-  /** Optional: Flag to indicate if the comment was created by the current user (for local identification). */
-  isOwnComment?: boolean;
+  updatedAt?: string; // ISO 8601 format, optional as it might not be updated
+  userId?: string;    // Optional: ID of the user who wrote the comment
+  author?: string;    // Optional: Display name of the user
+  isOwnComment?: boolean; // Added this line
 }

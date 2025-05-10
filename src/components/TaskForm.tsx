@@ -10,25 +10,20 @@ import {
   DatePicker,
   SelectProps
 } from '@cloudscape-design/components';
-import { TaskFormData, Task } from '../models/Task';
-
-interface Project {
-  id: string;
-  name: string;
-}
-
-const availableProjects: Project[] = [];
+import { TaskFormData, Task, TaskStatus, TaskPriority, Project } from '../models/Task';
 
 interface TaskFormProps {
   onSubmit: (task: TaskFormData) => void;
   onCancel: () => void;
   initialTask?: Task;
+  projects?: Project[];
 }
 
 const TaskForm: React.FC<TaskFormProps> = ({
   onSubmit,
   onCancel,
   initialTask,
+  projects = [],
 }) => {
   const submitButtonText = initialTask ? '変更を保存' : 'タスクを作成';
 
@@ -94,7 +89,7 @@ const TaskForm: React.FC<TaskFormProps> = ({
 
   const projectOptions: SelectProps.Option[] = [
     { label: "プロジェクトを選択", value: "" },
-    ...availableProjects.map(p => ({ label: p.name, value: p.id }))
+    ...projects.map(p => ({ label: p.name, value: p.id }))
   ];
 
   const selectedProjectOption = projectOptions.find(opt => opt.value === formData.projectId) || projectOptions[0];
