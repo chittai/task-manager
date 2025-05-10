@@ -1,4 +1,6 @@
-import { Comment } from './Comment';
+import { Comment as TaskCommentModel } from './Comment'; // エイリアスを TaskCommentModel に変更
+
+export type { TaskCommentModel }; // TaskCommentModel をエクスポート
 
 export type TaskStatus = 'todo' | 'in-progress' | 'done' | 'inbox' | 'wait-on';
 export type TaskPriority = 'low' | 'medium' | 'high';
@@ -51,7 +53,7 @@ export interface Task {
   /**
    * Optional: List of comments associated with the task.
    */
-  comments?: Comment[];
+  comments?: TaskCommentModel[]; // TaskCommentModel を使用
   /**
    * Optional: Array of changes made to the task.
    */

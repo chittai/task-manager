@@ -12,6 +12,7 @@ interface CommentListProps {
   onCommentsChanged?: () => void;
   updateTaskComment: (commentId: string, newContent: string) => Promise<void>;
   deleteTaskComment: (commentId: string) => Promise<void>;
+  currentUserId?: string;
 }
 
 const CommentList: React.FC<CommentListProps> = ({ 
@@ -21,7 +22,8 @@ const CommentList: React.FC<CommentListProps> = ({
   onEdit, 
   onCommentsChanged, 
   updateTaskComment, 
-  deleteTaskComment 
+  deleteTaskComment, 
+  currentUserId 
 }) => {
   const [editingComment, setEditingComment] = useState<Comment | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);

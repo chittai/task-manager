@@ -1,16 +1,16 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { Task, TaskFormData, TaskStatus } from '../models/Task';
-import { Comment } from '../models/Comment';
+import { Task, TaskFormData, TaskStatus, TaskCommentModel } from '../models/Task';
 import { v4 as uuidv4 } from 'uuid';
 
 // ローカルストレージのキー
 const STORAGE_KEY = 'tasks';
 
 // --- Internal Task Type (uses Date objects for dates) ---
-export interface InternalTask extends Omit<Task, 'dueDate' | 'createdAt' | 'updatedAt'> {
+export interface InternalTask extends Omit<Task, 'dueDate' | 'createdAt' | 'updatedAt' | 'comments'> {
   dueDate?: Date;
   createdAt: Date;
   updatedAt: Date;
+  comments?: TaskCommentModel[];
 }
 
 // --- Types for Filtering and Sorting ---
@@ -47,12 +47,13 @@ export const useTasks = () => {
       try {
         const savedTasks = localStorage.getItem(STORAGE_KEY);
         if (savedTasks) {
-          const parsedTasks = JSON.parse(savedTasks) as Task[]; // Tasks from storage have string dates
+          const parsedTasks = JSON.parse(savedTasks) as Task[]; // Task[] from storage
           const internalTasks = parsedTasks.map((task): InternalTask => ({
-            ...task,
+            ...task, // task.comments は TaskCommentModel[] | undefined のはず
             createdAt: new Date(task.createdAt),
             updatedAt: new Date(task.updatedAt),
             dueDate: task.dueDate ? new Date(task.dueDate) : undefined,
+            // comments: task.comments ? task.comments.map(c => ({...c})) : [], // 念のため再マップするなら。基本不要なはず
           }));
           setTasks(internalTasks);
         }
@@ -144,45 +145,39 @@ export const useTasks = () => {
   }, [updateTask]);
 
   // --- Comment Operations ---
-  const addCommentToTask = useCallback((taskId: string, commentContent: string): Promise<InternalTask | null> => {
+  const addCommentToTask = useCallback((taskId: string, commentContent: string, userId?: string, author?: string): Promise<InternalTask | null> => {
     const taskIndex = tasks.findIndex(t => t.id === taskId);
     if (taskIndex === -1) {
       console.error(`[useTasks.ts] addCommentToTask: Task with id ${taskId} not found`);
       return Promise.resolve(null); 
     }
+
     const originalTask = tasks[taskIndex];
 
-    const newComment: Comment = {
+    const now = new Date(); 
+    const newComment: TaskCommentModel = {
       id: uuidv4(),
-      taskId,
+      taskId: taskId,
       content: commentContent,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      isOwnComment: true, 
+      createdAt: now.toISOString(), // Store as ISO string
+      userId: userId, 
+      author: author,
     };
 
     const updatedComments = [...(originalTask.comments || []), newComment];
-    console.log('[useTasks.ts] addCommentToTask - originalTask.comments before add:', JSON.stringify(originalTask.comments, null, 2)); 
-    console.log('[useTasks.ts] addCommentToTask - newComment:', JSON.stringify(newComment, null, 2)); 
-    console.log('[useTasks.ts] addCommentToTask - updatedComments after add:', JSON.stringify(updatedComments, null, 2));
-
     const updatedTaskInstance: InternalTask = {
       ...originalTask,
       comments: updatedComments,
-      updatedAt: new Date(),
+      updatedAt: now,
     };
-    console.log('[useTasks.ts] addCommentToTask - updatedTaskInstance before setTasks:', JSON.stringify(updatedTaskInstance, null, 2));
-
+    
     setTasks(prevTasks => {
       const newTasks = [...prevTasks];
-      const currentTaskIndex = newTasks.findIndex(t => t.id === taskId);
-      if (currentTaskIndex !== -1) {
-        newTasks[currentTaskIndex] = updatedTaskInstance;
-      }
+      newTasks[taskIndex] = updatedTaskInstance;
       return newTasks;
     });
 
-    return Promise.resolve(updatedTaskInstance); 
+    return Promise.resolve(updatedTaskInstance);
   }, [tasks]);
 
   const updateTaskComment = useCallback((taskId: string, commentId: string, newContent: string): Promise<InternalTask | null> => {
@@ -191,34 +186,35 @@ export const useTasks = () => {
       console.error(`[useTasks.ts] updateTaskComment: Task with id ${taskId} not found`);
       return Promise.resolve(null);
     }
-    const originalTask = tasks[taskIndex];
-    console.log('[useTasks.ts] updateTaskComment - originalTask.comments:', JSON.stringify(originalTask.comments, null, 2));
 
+    const originalTask = tasks[taskIndex];
+    let commentUpdated = false;
     const updatedComments = (originalTask.comments || []).map(comment => {
       if (comment.id === commentId) {
+        commentUpdated = true;
         return {
           ...comment,
           content: newContent,
-          updatedAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(), // Store as ISO string
         };
       }
       return comment;
     });
-    console.log('[useTasks.ts] updateTaskComment - mapped updatedComments:', JSON.stringify(updatedComments, null, 2));
+
+    if (!commentUpdated) {
+      console.warn(`[useTasks.ts] updateTaskComment: Comment with id ${commentId} not found in task ${taskId}`);
+      return Promise.resolve(originalTask); // Or null if we want to indicate no update occurred
+    }
 
     const updatedTaskInstance: InternalTask = {
       ...originalTask,
       comments: updatedComments,
       updatedAt: new Date(),
     };
-    console.log('[useTasks.ts] updateTaskComment - updatedTaskInstance before setTasks:', JSON.stringify(updatedTaskInstance, null, 2));
-    
+
     setTasks(prevTasks => {
       const newTasks = [...prevTasks];
-      const currentTaskIndex = newTasks.findIndex(t => t.id === taskId);
-      if (currentTaskIndex !== -1) {
-        newTasks[currentTaskIndex] = updatedTaskInstance;
-      }
+      newTasks[taskIndex] = updatedTaskInstance;
       return newTasks;
     });
 
@@ -233,22 +229,16 @@ export const useTasks = () => {
     }
     const originalTask = tasks[taskIndex];
     const updatedComments = (originalTask.comments || []).filter(comment => comment.id !== commentId);
-    console.log('[useTasks.ts] deleteTaskComment - originalTask.comments:', JSON.stringify(originalTask.comments, null, 2));
-    console.log('[useTasks.ts] deleteTaskComment - filtered updatedComments:', JSON.stringify(updatedComments, null, 2));
 
     const updatedTaskInstance: InternalTask = {
       ...originalTask,
       comments: updatedComments,
       updatedAt: new Date(),
     };
-    console.log('[useTasks.ts] deleteTaskComment - updatedTaskInstance before setTasks:', JSON.stringify(updatedTaskInstance, null, 2));
 
     setTasks(prevTasks => {
       const newTasks = [...prevTasks];
-      const currentTaskIndex = newTasks.findIndex(t => t.id === taskId);
-      if (currentTaskIndex !== -1) {
-        newTasks[currentTaskIndex] = updatedTaskInstance;
-      }
+      newTasks[taskIndex] = updatedTaskInstance;
       return newTasks;
     });
 

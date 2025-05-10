@@ -1,14 +1,15 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
 import {
   Modal,
   Box,
   SpaceBetween,
   Tabs,
 } from '@cloudscape-design/components';
-import { Task, TaskFormData, Comment as CommentType } from '../models/Task';
+import { Task, TaskFormData, TaskCommentModel as CommentType, Project } from '../models/Task';
 import TaskForm from './TaskForm';
 import CommentList from './CommentList';
 import CommentForm from './CommentForm';
+// import { AuthContext } from '../context/AuthContext'; 
 import { InternalTask } from '../hooks/useTasks';
 
 interface TaskModalProps {
@@ -16,10 +17,11 @@ interface TaskModalProps {
   onDismiss: () => void;
   onAddTask?: (formData: TaskFormData) => Promise<InternalTask | null>;
   onUpdateTask?: (id: string, formData: TaskFormData) => Promise<InternalTask | null>;
-  onAddComment?: (taskId: string, commentContent: string) => Promise<InternalTask | null>;
+  onAddComment?: (taskId: string, commentContent: string, userId?: string, author?: string) => Promise<InternalTask | null>; 
   onUpdateComment?: (taskId: string, commentId: string, commentContent: string) => Promise<InternalTask | null>;
   onDeleteComment?: (taskId: string, commentId: string) => Promise<InternalTask | null>;
   task?: Task | null;
+  projects?: Project[];
 }
 
 const TaskModal: React.FC<TaskModalProps> = ({
@@ -31,119 +33,105 @@ const TaskModal: React.FC<TaskModalProps> = ({
   onAddComment,
   onUpdateComment,
   onDeleteComment,
+  projects,
 }) => {
   const [activeTabId, setActiveTabId] = useState('task-details');
   const [currentTask, setCurrentTask] = useState<Task | InternalTask | null | undefined>(existingTask);
+  // const { auth } = useContext(AuthContext); 
 
   useEffect(() => {
-    setCurrentTask(existingTask);
-  }, [existingTask, visible]);
+    if (visible) {
+      setCurrentTask(existingTask);
+      setActiveTabId('task-details'); 
+    } else {
+      // setCurrentTask(null);
+    }
+  }, [visible, existingTask]);
 
   const handleTaskFormSubmit = async (formData: TaskFormData) => {
-    let updatedOrNewTask: InternalTask | null = null;
-    if (existingTask && onUpdateTask) {
-      updatedOrNewTask = await onUpdateTask(existingTask.id, formData);
+    let resultTask: InternalTask | null = null;
+    if (currentTask && currentTask.id && onUpdateTask) {
+      resultTask = await onUpdateTask(currentTask.id, formData);
     } else if (onAddTask) {
-      updatedOrNewTask = await onAddTask(formData);
+      resultTask = await onAddTask(formData);
     }
-    if (updatedOrNewTask) {
-      setCurrentTask(updatedOrNewTask);
+    if (resultTask) {
+      setCurrentTask(resultTask); 
+      // onDismiss(); 
     }
-    onDismiss();
   };
 
-  const handleAddCommentInternal = async (commentContent: string) => {
+  const handleAddComment = async (commentContent: string) => {
     if (currentTask && currentTask.id && onAddComment) {
-      try {
-        const updatedTask = await onAddComment(currentTask.id, commentContent);
-        if (updatedTask) {
-          setCurrentTask(updatedTask);
-        }
-      } catch (error) {
-        console.error("Failed to add comment:", error);
+      // const updatedTask = await onAddComment(currentTask.id, commentContent, auth.user?.username, auth.user?.username ); 
+      const updatedTask = await onAddComment(currentTask.id, commentContent); 
+      if (updatedTask) {
+        setCurrentTask(updatedTask);
       }
     }
   };
 
-  const handleUpdateCommentForList = async (taskId: string, commentId: string, commentContent: string): Promise<InternalTask | null> => {
-    if (onUpdateComment) {
-      const updatedTask = await onUpdateComment(taskId, commentId, commentContent);
-      if (updatedTask) setCurrentTask(updatedTask);
-      return updatedTask;
+  const updateCommentForCommentList = async (commentId: string, newContent: string): Promise<void> => {
+    if (currentTask && currentTask.id && onUpdateComment) {
+      const updatedTask = await onUpdateComment(currentTask.id, commentId, newContent);
+      if (updatedTask) {
+        setCurrentTask(updatedTask);
+      }
     }
-    return null;
   };
 
-  const handleDeleteCommentForList = async (taskId: string, commentId: string): Promise<InternalTask | null> => {
-    if (onDeleteComment) {
-      const updatedTask = await onDeleteComment(taskId, commentId);
-      if (updatedTask) setCurrentTask(updatedTask);
-      return updatedTask;
+  const deleteCommentForCommentList = async (commentId: string): Promise<void> => {
+    if (currentTask && currentTask.id && onDeleteComment) {
+      const updatedTask = await onDeleteComment(currentTask.id, commentId);
+      if (updatedTask) {
+        setCurrentTask(updatedTask);
+      }
     }
-    return null;
   };
 
-  const modalTitle = existingTask ? 'タスクを編集' : '新しいタスク';
-
-  useEffect(() => {
-    if (!visible) {
-      setActiveTabId('task-details');
-    }
-  }, [visible]);
-
-  const commentsForList: CommentType[] = [];
-  if (currentTask && currentTask.comments) {
-    commentsForList.push(...currentTask.comments);
-  }
+  const tabs = [
+    {
+      id: 'task-details',
+      label: 'タスク詳細',
+      content: (
+        <TaskForm
+          initialTask={currentTask ? (('createdAt' in currentTask && typeof currentTask.createdAt !== 'string') ? { ...currentTask, createdAt: (currentTask.createdAt as Date).toISOString(), updatedAt: (currentTask.updatedAt as Date).toISOString(), dueDate: (currentTask.dueDate as Date)?.toISOString() } : currentTask as Task) : undefined}
+          onSubmit={handleTaskFormSubmit}
+          onCancel={onDismiss}
+          projects={projects}
+        />
+      ),
+    },
+    {
+      id: 'comments',
+      label: 'コメント',
+      disabled: !currentTask || !currentTask.id, 
+      content: (
+        <SpaceBetween size="l">
+          {currentTask && currentTask.id && (
+            <CommentList
+              comments={currentTask && 'comments' in currentTask ? currentTask.comments as CommentType[] : []} 
+              updateTaskComment={updateCommentForCommentList}
+              deleteTaskComment={deleteCommentForCommentList}
+              taskId={currentTask.id!}
+              // currentUserId={auth.user?.username} 
+            />
+          )}
+          <CommentForm onSubmit={handleAddComment} />
+        </SpaceBetween>
+      ),
+    },
+  ];
 
   return (
     <Modal
-      visible={visible}
       onDismiss={onDismiss}
-      header={modalTitle}
-      closeAriaLabel="Close modal"
-      size="medium"
+      visible={visible}
+      header={currentTask && currentTask.id ? 'タスク編集' : 'タスク作成'}
+      closeAriaLabel="閉じる"
     >
       <Tabs
-        tabs={[
-          {
-            label: 'タスク詳細',
-            id: 'task-details',
-            content: (
-              <TaskForm
-                initialTask={currentTask ? (('createdAt' in currentTask && typeof currentTask.createdAt !== 'string') ? { ...currentTask, createdAt: (currentTask.createdAt as Date).toISOString(), updatedAt: (currentTask.updatedAt as Date).toISOString(), dueDate: (currentTask.dueDate as Date)?.toISOString() } : currentTask as Task) : undefined}
-                onSubmit={handleTaskFormSubmit}
-                onCancel={onDismiss}
-              />
-            ),
-          },
-          {
-            label: 'コメント',
-            id: 'comments',
-            disabled: !currentTask,
-            content: (
-              <Box margin={{ top: 'm' }}>
-                <SpaceBetween size="l">
-                  {currentTask && currentTask.id && (
-                    <>
-                      <CommentForm 
-                        onSubmit={handleAddCommentInternal} 
-                        isLoading={false} 
-                        submitButtonText="コメントを追加"
-                      />
-                      <CommentList 
-                        comments={commentsForList} 
-                        taskId={currentTask.id!} 
-                        updateTaskComment={handleUpdateCommentForList}
-                        deleteTaskComment={handleDeleteCommentForList}
-                      />
-                    </>
-                  )}
-                </SpaceBetween>
-              </Box>
-            ),
-          },
-        ]}
+        tabs={tabs}
         activeTabId={activeTabId}
         onChange={({ detail }) => setActiveTabId(detail.activeTabId)}
       />
