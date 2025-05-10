@@ -1,5 +1,7 @@
 import { Comment } from './Comment';
 
+export type { Comment }; // Comment 型を再エクスポート
+
 export type TaskStatus = 'todo' | 'in-progress' | 'done' | 'inbox' | 'wait-on';
 export type TaskPriority = 'low' | 'medium' | 'high';
 

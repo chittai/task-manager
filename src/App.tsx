@@ -10,7 +10,7 @@ import {
 import '@cloudscape-design/global-styles/index.css';
 import { BrowserRouter, Routes, Route } from 'react-router-dom'; 
 import { useTasks, InternalTask, FilterCriteria, SortCriteria } from './hooks/useTasks'; 
-import { Task, TaskFormData, Project, TaskStatus, TaskCommentModel } from './models/Task'; 
+import { Task, TaskFormData, Project, TaskStatus, Comment } from './models/Task'; 
 import TaskList from './components/TaskList';
 import TaskModal from './components/TaskModal'; 
 import { ProjectList } from './components/ProjectList';
@@ -81,8 +81,9 @@ function App() {
     return newTask;
   };
 
-  const handleAddCommentToTask = async (taskId: string, content: string, userId?: string, author?: string): Promise<InternalTask | null> => {
-    return addCommentToTask(taskId, content, userId, author);
+  const handleAddCommentToTask = async (taskId: string, content: string): Promise<InternalTask | null> => {
+    // userId と author は AuthContext 実装後に渡すようにする
+    return addCommentToTask(taskId, content);
   };
 
   const handleUpdateCommentInTask = async (taskId: string, commentId: string, content: string): Promise<InternalTask | null> => {
@@ -101,7 +102,7 @@ function App() {
   if (tasksError || projectsError) return <Alert statusIconAriaLabel="Error" type="error">{tasksError || projectsError}</Alert>;
 
   const tasksForTaskList: Task[] = tasks.map((internalTask: InternalTask): Task => {
-    const commentsForTask: TaskCommentModel[] | undefined = internalTask.comments;
+    const commentsForTask: Comment[] | undefined = internalTask.comments;
 
     return {
       ...internalTask,

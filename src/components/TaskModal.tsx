@@ -5,7 +5,8 @@ import {
   SpaceBetween,
   Tabs,
 } from '@cloudscape-design/components';
-import { Task, TaskFormData, Comment as CommentType } from '../models/Task';
+import { Task, TaskFormData, Project } from '../models/Task';
+import { Comment as CommentType } from '../models/Comment';
 import TaskForm from './TaskForm';
 import CommentList from './CommentList';
 import CommentForm from './CommentForm';
@@ -20,6 +21,7 @@ interface TaskModalProps {
   onUpdateComment?: (taskId: string, commentId: string, commentContent: string) => Promise<InternalTask | null>;
   onDeleteComment?: (taskId: string, commentId: string) => Promise<InternalTask | null>;
   task?: Task | null;
+  projects?: Project[];
 }
 
 const TaskModal: React.FC<TaskModalProps> = ({
@@ -31,6 +33,7 @@ const TaskModal: React.FC<TaskModalProps> = ({
   onAddComment,
   onUpdateComment,
   onDeleteComment,
+  projects,
 }) => {
   const [activeTabId, setActiveTabId] = useState('task-details');
   const [currentTask, setCurrentTask] = useState<Task | InternalTask | null | undefined>(existingTask);
@@ -83,6 +86,18 @@ const TaskModal: React.FC<TaskModalProps> = ({
     return null;
   };
 
+  const wrappedUpdateTaskComment = async (commentId: string, newContent: string): Promise<void> => {
+    if (currentTask && currentTask.id) {
+      await handleUpdateCommentForList(currentTask.id, commentId, newContent);
+    }
+  };
+
+  const wrappedDeleteTaskComment = async (commentId: string): Promise<void> => {
+    if (currentTask && currentTask.id) {
+      await handleDeleteCommentForList(currentTask.id, commentId);
+    }
+  };
+
   const modalTitle = existingTask ? 'タスクを編集' : '新しいタスク';
 
   useEffect(() => {
@@ -114,6 +129,7 @@ const TaskModal: React.FC<TaskModalProps> = ({
                 initialTask={currentTask ? (('createdAt' in currentTask && typeof currentTask.createdAt !== 'string') ? { ...currentTask, createdAt: (currentTask.createdAt as Date).toISOString(), updatedAt: (currentTask.updatedAt as Date).toISOString(), dueDate: (currentTask.dueDate as Date)?.toISOString() } : currentTask as Task) : undefined}
                 onSubmit={handleTaskFormSubmit}
                 onCancel={onDismiss}
+                projects={projects}
               />
             ),
           },
@@ -122,24 +138,24 @@ const TaskModal: React.FC<TaskModalProps> = ({
             id: 'comments',
             disabled: !currentTask,
             content: (
-              <Box margin={{ top: 'm' }}>
-                <SpaceBetween size="l">
-                  {currentTask && currentTask.id && (
-                    <>
-                      <CommentForm 
-                        onSubmit={handleAddCommentInternal} 
-                        isLoading={false} 
-                        submitButtonText="コメントを追加"
-                      />
+              <Box margin={{ top: 'l' }}>
+                {currentTask && currentTask.id && (
+                  <>
+                    <CommentForm 
+                      onSubmit={handleAddCommentInternal} 
+                      isLoading={false} 
+                      submitButtonText="コメントを追加"
+                    />
+                    <Box margin={{ top: 'l' }}>
                       <CommentList 
                         comments={commentsForList} 
                         taskId={currentTask.id!} 
-                        updateTaskComment={handleUpdateCommentForList}
-                        deleteTaskComment={handleDeleteCommentForList}
+                        updateTaskComment={wrappedUpdateTaskComment}
+                        deleteTaskComment={wrappedDeleteTaskComment}
                       />
-                    </>
-                  )}
-                </SpaceBetween>
+                    </Box>
+                  </>
+                )}
               </Box>
             ),
           },
