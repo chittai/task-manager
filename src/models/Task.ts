@@ -2,6 +2,8 @@ import { Comment as TaskCommentModel } from './Comment'; // エイリアスを T
 
 export type { TaskCommentModel }; // TaskCommentModel をエクスポート
 
+export type { Comment }; // Comment 型を再エクスポート
+
 export type TaskStatus = 'todo' | 'in-progress' | 'done' | 'inbox' | 'wait-on';
 export type TaskPriority = 'low' | 'medium' | 'high';
 
