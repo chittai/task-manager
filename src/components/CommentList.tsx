@@ -3,19 +3,22 @@ import { Box, SpaceBetween, Modal, Button } from '@cloudscape-design/components'
 import { Comment } from '../models/Comment';
 import CommentCard from './CommentCard';
 import CommentForm from './CommentForm';
-import { InternalTask } from '../hooks/useTasks'; // ★ InternalTask を直接インポート
 
 interface CommentListProps {
   comments: Comment[];
   taskId: string;
-  onCommentsChanged?: (updatedTask: InternalTask | null) => void;
-  updateTaskComment: (taskId: string, commentId: string, newContent: string) => Promise<InternalTask | null>;
-  deleteTaskComment: (taskId: string, commentId: string) => Promise<InternalTask | null>;
+  onDelete?: (commentId: string) => void;
+  onEdit?: (comment: Comment) => void;
+  onCommentsChanged?: () => void;
+  updateTaskComment: (commentId: string, newContent: string) => Promise<void>;
+  deleteTaskComment: (commentId: string) => Promise<void>;
 }
 
 const CommentList: React.FC<CommentListProps> = ({ 
   comments, 
   taskId, 
+  onDelete, 
+  onEdit, 
   onCommentsChanged, 
   updateTaskComment, 
   deleteTaskComment 
@@ -38,10 +41,10 @@ const CommentList: React.FC<CommentListProps> = ({
   const handleUpdateComment = async (updatedContent: string) => {
     if (editingComment) {
       try {
-        const updatedTask = await updateTaskComment(taskId, editingComment.id, updatedContent);
+        await updateTaskComment(editingComment.id, updatedContent);
         setEditingComment(null);
         if (onCommentsChanged) {
-          onCommentsChanged(updatedTask);
+          onCommentsChanged();
         }
       } catch (error) {
         console.error('Failed to update comment:', error);
@@ -56,10 +59,10 @@ const CommentList: React.FC<CommentListProps> = ({
   const confirmDelete = async () => {
     if (showDeleteConfirm) {
       try {
-        const updatedTask = await deleteTaskComment(taskId, showDeleteConfirm);
+        await deleteTaskComment(showDeleteConfirm);
         setShowDeleteConfirm(null);
         if (onCommentsChanged) {
-          onCommentsChanged(updatedTask);
+          onCommentsChanged();
         }
       } catch (error) {
         console.error('Failed to delete comment:', error);
@@ -85,8 +88,8 @@ const CommentList: React.FC<CommentListProps> = ({
           <CommentCard
             key={comment.id}
             comment={comment}
-            onEdit={handleEdit}
-            onDelete={handleDelete}
+            onEdit={onEdit ? () => onEdit(comment) : (c: Comment) => { /* no-op for CommentCard */ }}
+            onDelete={onDelete ? () => onDelete(comment.id) : (id: string) => { /* no-op for CommentCard */ }}
           />
         )
       )}

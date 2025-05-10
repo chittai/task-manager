@@ -28,7 +28,6 @@ interface TaskListProps {
   onEditTask: (task: Task) => void;
   onDeleteTask: (taskId: string) => void;
   onStatusChange: (taskId: string, status: TaskStatus) => void;
-  onAddNewTask: () => void;
 }
 
 const sortableFields: { label: string; value: TaskSortableField }[] = [
@@ -55,8 +54,7 @@ const TaskList: React.FC<TaskListProps> = ({
   setSortCriteria,
   onEditTask,
   onDeleteTask,
-  onStatusChange,
-  onAddNewTask
+  onStatusChange
 }) => {
   const [currentPage, setCurrentPage] = useState(1);
 
@@ -144,9 +142,6 @@ const TaskList: React.FC<TaskListProps> = ({
                 disabled={!sortCriteria || !sortCriteria.field} 
                 placeholder="順序"
               />
-              <Button onClick={onAddNewTask} variant="primary">
-                新しいタスク
-              </Button>
             </SpaceBetween>
           }
         >
@@ -217,7 +212,6 @@ const TaskList: React.FC<TaskListProps> = ({
           <Box padding={{ bottom: "s" }} variant="p" color="inherit">
             フィルター条件に一致するタスクがないか、タスクが登録されていません。
           </Box>
-          <Button onClick={onAddNewTask}>新しいタスク</Button>
         </Box>
       }
     />
