@@ -42,33 +42,33 @@ const ProjectForm: React.FC<ProjectFormProps> = ({
       event.preventDefault();
     }
     if (!name.trim()) {
-      setNameError('');
+      setNameError('プロジェクト名は必須です。'); 
       return;
     }
     setNameError(null);
     onSubmit({ name: name.trim(), description: description.trim() });
   };
 
-  const buttonText = submitButtonText || (initialProject ? '' : '');
+  const buttonText = submitButtonText || (initialProject ? '保存' : '作成'); 
+  const formHeader = initialProject ? 'プロジェクトを編集' : '新しいプロジェクト'; 
 
   return (
     <Form
       actions={
         <SpaceBetween direction="horizontal" size="xs">
           <Button variant="link" onClick={onCancel}>
-            
+            キャンセル 
           </Button>
           <Button variant="primary" onClick={() => handleFormSubmit()}>
             {buttonText}
           </Button>
         </SpaceBetween>
       }
-      header={<h2>{initialProject ? '' : ''}</h2>} 
-      errorText={nameError ? "" : undefined}
+      header={<h2>{formHeader}</h2>} 
     >
       <SpaceBetween direction="vertical" size="l">
         <FormField
-          label=""
+          label="プロジェクト名" 
           errorText={nameError}
         >
           <Input
@@ -79,16 +79,16 @@ const ProjectForm: React.FC<ProjectFormProps> = ({
                 setNameError(null);
               }
             }}
-            placeholder=""
+            placeholder="プロジェクト名を入力" 
           />
         </FormField>
         <FormField
-          label="( )"
+          label="説明 (任意)" 
         >
           <Textarea
             value={description}
             onChange={({ detail }) => setDescription(detail.value)}
-            placeholder=""
+            placeholder="プロジェクトの説明を入力" 
             rows={4} 
           />
         </FormField>
