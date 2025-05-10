@@ -10,7 +10,7 @@ import {
 import '@cloudscape-design/global-styles/index.css';
 import { BrowserRouter, Routes, Route } from 'react-router-dom'; 
 import { useTasks, InternalTask, FilterCriteria, SortCriteria } from './hooks/useTasks'; 
-import { Task, TaskFormData, Project, TaskStatus } from './models/Task'; 
+import { Task, TaskFormData, Project, TaskStatus, TaskCommentModel } from './models/Task'; 
 import TaskList from './components/TaskList';
 import TaskModal from './components/TaskModal'; 
 import { ProjectList } from './components/ProjectList';
@@ -20,7 +20,7 @@ import { useProjects } from './hooks/useProjects';
 function App() {
   const {
     tasks, 
-    allInternalTasks, 
+    allTasks, 
     loading: tasksLoading, 
     error: tasksError,
     addTask,
@@ -45,9 +45,10 @@ function App() {
   const [isEditModalVisible, setIsEditModalVisible] = useState(false);
   const [isCreateModalVisible, setIsCreateModalVisible] = useState(false);
   const [selectedTask, setSelectedTask] = useState<Task | undefined>(undefined);
+  const [listUpdateKey, setListUpdateKey] = useState(0);
 
   const handleOpenCreateModal = () => {
-    setSelectedTask(undefined); // Ensure no task is selected for creation
+    setSelectedTask(undefined); 
     setIsCreateModalVisible(true);
   };
 
@@ -62,37 +63,54 @@ function App() {
     setIsEditModalVisible(true);
   };
 
-  const handleFormSubmit = async (formData: TaskFormData) => { 
-    if (selectedTask && selectedTask.id) {
-      await updateTask(selectedTask.id, formData);
-    } else {
-      await addTask(formData);
-    }
+  // TaskModal から呼び出される更新処理
+  const handleUpdateExistingTask = async (id: string, formData: TaskFormData): Promise<InternalTask | null> => {
+    const updatedTask = await updateTask(id, formData);
     setIsEditModalVisible(false);
-    setIsCreateModalVisible(false);
     setSelectedTask(undefined);
+    return updatedTask;
   };
 
-  const handleAddCommentToTask = async (taskId: string, content: string, userId?: string, author?: string): Promise<void> => {
-    await addCommentToTask(taskId, content, userId, author);
+  // TaskModal から呼び出される追加処理
+  const handleAddNewTask = async (formData: TaskFormData): Promise<InternalTask | null> => {
+    const newTask = await addTask(formData);
+    setIsCreateModalVisible(false);
+    if (newTask) { 
+      setListUpdateKey(prevKey => prevKey + 1);
+    }
+    return newTask;
   };
 
-  const handleUpdateCommentInTask = async (taskId: string, commentId: string, content: string): Promise<void> => {
-    await updateTaskComment(taskId, commentId, content);
+  const handleAddCommentToTask = async (taskId: string, content: string, userId?: string, author?: string): Promise<InternalTask | null> => {
+    return addCommentToTask(taskId, content, userId, author);
   };
 
-  const handleDeleteCommentInTask = async (taskId: string, commentId: string): Promise<void> => {
-    await deleteTaskComment(taskId, commentId);
+  const handleUpdateCommentInTask = async (taskId: string, commentId: string, content: string): Promise<InternalTask | null> => {
+    return updateTaskComment(taskId, commentId, content);
+  };
+
+  const handleDeleteCommentInTask = async (taskId: string, commentId: string): Promise<InternalTask | null> => {
+    return deleteTaskComment(taskId, commentId);
   };
 
   const handleStatusChange = async (taskId: string, status: TaskStatus) => {
     await changeTaskStatus(taskId, status);
-    // Optionally, refresh tasks or rely on useTasks to update the tasks list
-    // setTasks(prev => prev.map(t => t.id === taskId ? {...t, status} : t)); // If direct update needed
   };
 
   if (tasksLoading || projectsLoading) return <Spinner size="large" />;
   if (tasksError || projectsError) return <Alert statusIconAriaLabel="Error" type="error">{tasksError || projectsError}</Alert>;
+
+  const tasksForTaskList: Task[] = tasks.map((internalTask: InternalTask): Task => {
+    const commentsForTask: TaskCommentModel[] | undefined = internalTask.comments;
+
+    return {
+      ...internalTask,
+      createdAt: internalTask.createdAt.toISOString(),
+      updatedAt: internalTask.updatedAt.toISOString(),
+      dueDate: internalTask.dueDate?.toISOString(),
+      comments: commentsForTask,
+    };
+  });
 
   return (
     <BrowserRouter>
@@ -107,13 +125,14 @@ function App() {
                 <SpaceBetween size="l">
                   <AddTaskButton onClick={handleOpenCreateModal} />
                   <TaskList
-                    tasks={tasks} 
+                    key={`task-list-${listUpdateKey}`} 
+                    tasks={tasksForTaskList} 
                     loading={tasksLoading}
                     error={tasksError}
-                    filterCriteria={filterCriteria}
-                    setFilterCriteria={setFilterCriteria}
-                    sortCriteria={sortCriteria}
-                    setSortCriteria={setSortCriteria}
+                    filterCriteria={filterCriteria as FilterCriteria} 
+                    setFilterCriteria={setFilterCriteria as React.Dispatch<React.SetStateAction<Partial<FilterCriteria>>>} 
+                    sortCriteria={sortCriteria as SortCriteria | null} 
+                    setSortCriteria={setSortCriteria as React.Dispatch<React.SetStateAction<SortCriteria | null>>} 
                     onEditTask={handleEditTask} 
                     onDeleteTask={handleDeleteTask} 
                     onStatusChange={handleStatusChange} 
@@ -126,12 +145,13 @@ function App() {
                       setIsEditModalVisible(false);
                       setSelectedTask(undefined);
                     }}
-                    taskToEdit={selectedTask}
-                    onSubmit={handleFormSubmit} 
-                    projects={projects}
-                    onAddComment={handleAddCommentToTask}
-                    onUpdateComment={handleUpdateCommentInTask}
-                    onDeleteComment={handleDeleteCommentInTask}
+                    task={selectedTask} 
+                    onUpdateTask={handleUpdateExistingTask}
+                    onAddTask={handleAddNewTask}
+                    projects={projects as Project[]} 
+                    onAddComment={handleAddCommentToTask} 
+                    onUpdateComment={handleUpdateCommentInTask} 
+                    onDeleteComment={handleDeleteCommentInTask} 
                   />
                 </SpaceBetween>
               </ContentLayout>
