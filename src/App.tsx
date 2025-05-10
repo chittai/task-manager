@@ -10,7 +10,8 @@ import {
 import '@cloudscape-design/global-styles/index.css';
 import { BrowserRouter, Routes, Route } from 'react-router-dom'; 
 import { useTasks, InternalTask, FilterCriteria, SortCriteria } from './hooks/useTasks'; 
-import { Task, TaskFormData, Project, TaskStatus, Comment } from './models/Task'; 
+import { Task, TaskFormData, Project, TaskStatus } from './models/Task'; 
+import { Comment as ProjectComment } from './models/Comment'; 
 import TaskList from './components/TaskList';
 import TaskModal from './components/TaskModal'; 
 import { ProjectList } from './components/ProjectList';
@@ -102,14 +103,14 @@ function App() {
   if (tasksError || projectsError) return <Alert statusIconAriaLabel="Error" type="error">{tasksError || projectsError}</Alert>;
 
   const tasksForTaskList: Task[] = tasks.map((internalTask: InternalTask): Task => {
-    const commentsForTask: Comment[] | undefined = internalTask.comments;
+    const commentsForTask: ProjectComment[] | undefined = internalTask.comments;
 
     return {
       ...internalTask,
       createdAt: internalTask.createdAt.toISOString(),
       updatedAt: internalTask.updatedAt.toISOString(),
       dueDate: internalTask.dueDate?.toISOString(),
-      comments: commentsForTask,
+      comments: commentsForTask, 
     };
   });
 
