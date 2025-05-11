@@ -24,8 +24,6 @@ const CommentCard: React.FC<CommentCardProps> = ({ comment, onEdit, onDelete }) 
 
   // TODO: ユーザー認証が実装されたら、実際のユーザー名やアバターを表示する
   const authorDisplay = comment.userId || 'Unknown User'; 
-  // コメントの所有者かどうかを isOwnComment フラグで判定する
-  const isOwner = comment.isOwnComment === true;
 
   return (
     <Container
@@ -47,18 +45,16 @@ const CommentCard: React.FC<CommentCardProps> = ({ comment, onEdit, onDelete }) 
       <TextContent>
         <ReactMarkdown remarkPlugins={[remarkGfm]}>{comment.content}</ReactMarkdown>
       </TextContent>
-      {isOwner && (
-        <Box margin={{ top: 's' }}>
-          <SpaceBetween direction="horizontal" size="s">
-            <Button iconName="edit" onClick={() => onEdit(comment)}>
-              編集
-            </Button>
-            <Button iconName="remove" onClick={() => onDelete(comment.id)}>
-              削除
-            </Button>
-          </SpaceBetween>
-        </Box>
-      )}
+      <Box margin={{ top: 's' }}>
+        <SpaceBetween direction="horizontal" size="s">
+          <Button iconName="edit" onClick={() => onEdit(comment)}>
+            編集
+          </Button>
+          <Button iconName="remove" onClick={() => onDelete(comment.id)}>
+            削除
+          </Button>
+        </SpaceBetween>
+      </Box>
     </Container>
   );
 };
