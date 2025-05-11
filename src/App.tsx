@@ -5,10 +5,11 @@ import {
   Spinner,
   Alert,
   SpaceBetween,
-  ContentLayout
+  ContentLayout,
+  SideNavigation,
 } from '@cloudscape-design/components';
 import '@cloudscape-design/global-styles/index.css';
-import { BrowserRouter, Routes, Route } from 'react-router-dom'; 
+import { BrowserRouter, Routes, Route, useNavigate, useLocation } from 'react-router-dom';
 import { useTasks, InternalTask, FilterCriteria, SortCriteria } from './hooks/useTasks'; 
 import { Task, TaskFormData, Project, TaskStatus } from './models/Task'; 
 import { Comment as ProjectComment } from './models/Comment'; 
@@ -18,7 +19,43 @@ import { ProjectList } from './components/ProjectList';
 import { AddTaskButton } from './components/AddTaskButton'; 
 import { useProjects } from './hooks/useProjects';
 
-function App() {
+const NavigationWrapper: React.FC = () => {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const [activeHref, setActiveHref] = useState(location.pathname);
+
+  useEffect(() => {
+    setActiveHref(location.pathname);
+  }, [location.pathname]);
+
+  return (
+    <AppLayout
+      navigationHide={false}
+      toolsHide={true}
+      contentType="default"
+      navigation={
+        <SideNavigation
+          activeHref={activeHref}
+          header={{ href: '/', text: 'タスクマネージャー' }}
+          onFollow={(event) => {
+            if (!event.detail.external) {
+              event.preventDefault();
+              setActiveHref(event.detail.href);
+              navigate(event.detail.href);
+            }
+          }}
+          items={[
+            { type: 'link', text: 'タスク一覧', href: '/' },
+            { type: 'link', text: 'プロジェクト一覧', href: '/projects' },
+          ]}
+        />
+      }
+      content={ <AppContent /> }
+    />
+  );
+};
+
+const AppContent: React.FC = () => {
   const {
     tasks, 
     allTasks, 
@@ -64,7 +101,6 @@ function App() {
     setIsEditModalVisible(true);
   };
 
-  // TaskModal から呼び出される更新処理
   const handleUpdateExistingTask = async (id: string, formData: TaskFormData): Promise<InternalTask | null> => {
     const updatedTask = await updateTask(id, formData);
     setIsEditModalVisible(false);
@@ -72,7 +108,6 @@ function App() {
     return updatedTask;
   };
 
-  // TaskModal から呼び出される追加処理
   const handleAddNewTask = async (formData: TaskFormData): Promise<InternalTask | null> => {
     const newTask = await addTask(formData);
     setIsCreateModalVisible(false);
@@ -83,7 +118,6 @@ function App() {
   };
 
   const handleAddCommentToTask = async (taskId: string, content: string): Promise<InternalTask | null> => {
-    // userId と author は AuthContext 実装後に渡すようにする
     return addCommentToTask(taskId, content);
   };
 
@@ -115,53 +149,52 @@ function App() {
   });
 
   return (
+    <Routes> 
+      <Route path="/" element={ 
+        <ContentLayout header={<Header variant="h1">タスク管理</Header>}> 
+          <SpaceBetween size="l">
+            <AddTaskButton onClick={handleOpenCreateModal} />
+            <TaskList
+              key={`task-list-${listUpdateKey}`} 
+              tasks={tasksForTaskList} 
+              loading={tasksLoading}
+              error={tasksError}
+              filterCriteria={filterCriteria as FilterCriteria} 
+              setFilterCriteria={setFilterCriteria as React.Dispatch<React.SetStateAction<Partial<FilterCriteria>>>} 
+              sortCriteria={sortCriteria as SortCriteria | null} 
+              setSortCriteria={setSortCriteria as React.Dispatch<React.SetStateAction<SortCriteria | null>>} 
+              onEditTask={handleEditTask} 
+              onDeleteTask={handleDeleteTask} 
+              onStatusChange={handleStatusChange} 
+            />
+            <TaskModal
+              key={selectedTask ? `edit-${selectedTask.id}` : 'create-task'}
+              visible={isCreateModalVisible || isEditModalVisible}
+              onDismiss={() => {
+                setIsCreateModalVisible(false);
+                setIsEditModalVisible(false);
+                setSelectedTask(undefined);
+              }}
+              task={selectedTask} 
+              onUpdateTask={handleUpdateExistingTask}
+              onAddTask={handleAddNewTask}
+              projects={projects as Project[]} 
+              onAddComment={handleAddCommentToTask} 
+              onUpdateComment={handleUpdateCommentInTask} 
+              onDeleteComment={handleDeleteCommentInTask} 
+            />
+          </SpaceBetween>
+        </ContentLayout>
+      } />
+      <Route path="/projects" element={<ProjectList />} />
+    </Routes>
+  );
+};
+
+function App() {
+  return (
     <BrowserRouter>
-      <AppLayout
-        navigationHide={true}
-        toolsHide={true}
-        contentType="default"
-        content={
-          <Routes> 
-            <Route path="/" element={ 
-              <ContentLayout header={<Header variant="h1">タスク管理</Header>}> 
-                <SpaceBetween size="l">
-                  <AddTaskButton onClick={handleOpenCreateModal} />
-                  <TaskList
-                    key={`task-list-${listUpdateKey}`} 
-                    tasks={tasksForTaskList} 
-                    loading={tasksLoading}
-                    error={tasksError}
-                    filterCriteria={filterCriteria as FilterCriteria} 
-                    setFilterCriteria={setFilterCriteria as React.Dispatch<React.SetStateAction<Partial<FilterCriteria>>>} 
-                    sortCriteria={sortCriteria as SortCriteria | null} 
-                    setSortCriteria={setSortCriteria as React.Dispatch<React.SetStateAction<SortCriteria | null>>} 
-                    onEditTask={handleEditTask} 
-                    onDeleteTask={handleDeleteTask} 
-                    onStatusChange={handleStatusChange} 
-                  />
-                  <TaskModal
-                    key={selectedTask ? `edit-${selectedTask.id}` : 'create-task'}
-                    visible={isCreateModalVisible || isEditModalVisible}
-                    onDismiss={() => {
-                      setIsCreateModalVisible(false);
-                      setIsEditModalVisible(false);
-                      setSelectedTask(undefined);
-                    }}
-                    task={selectedTask} 
-                    onUpdateTask={handleUpdateExistingTask}
-                    onAddTask={handleAddNewTask}
-                    projects={projects as Project[]} 
-                    onAddComment={handleAddCommentToTask} 
-                    onUpdateComment={handleUpdateCommentInTask} 
-                    onDeleteComment={handleDeleteCommentInTask} 
-                  />
-                </SpaceBetween>
-              </ContentLayout>
-            } />
-            <Route path="/projects" element={<ProjectList />} />
-          </Routes>
-        }
-      />
+      <NavigationWrapper />
     </BrowserRouter>
   );
 }
