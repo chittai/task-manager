@@ -18,6 +18,7 @@ import TaskModal from './components/TaskModal';
 import { ProjectList } from './components/ProjectList';
 import { AddTaskButton } from './components/AddTaskButton'; 
 import { useProjects } from './hooks/useProjects';
+import ProjectDetailPage from './pages/ProjectDetailPage';
 
 const NavigationWrapper: React.FC = () => {
   const navigate = useNavigate();
@@ -137,7 +138,11 @@ const AppContent: React.FC = () => {
   if (tasksError || projectsError) return <Alert statusIconAriaLabel="Error" type="error">{tasksError || projectsError}</Alert>;
 
   const tasksForTaskList: Task[] = tasks.map((internalTask: InternalTask): Task => {
-    const commentsForTask: ProjectComment[] | undefined = internalTask.comments;
+    const commentsForTask: ProjectComment[] | undefined = internalTask.comments?.map(comment => ({
+      ...comment,
+      createdAt: comment.createdAt.toISOString(),
+      updatedAt: comment.updatedAt?.toISOString(), 
+    }));
 
     return {
       ...internalTask,
@@ -187,6 +192,7 @@ const AppContent: React.FC = () => {
         </ContentLayout>
       } />
       <Route path="/projects" element={<ProjectList />} />
+      <Route path="/projects/:projectId" element={<ProjectDetailPage />} />
     </Routes>
   );
 };

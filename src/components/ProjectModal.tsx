@@ -3,7 +3,7 @@ import { Modal } from '@cloudscape-design/components';
 import { Project, ProjectFormData } from '../models/Project';
 import ProjectForm from './ProjectForm';
 
-interface ProjectModalProps {
+export interface ProjectModalProps {
   visible: boolean;
   onDismiss: () => void;
   onAddProject?: (formData: ProjectFormData) => Promise<Project | null>;
