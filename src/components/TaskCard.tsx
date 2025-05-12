@@ -6,7 +6,8 @@ import {
   Header,
   SpaceBetween,
   StatusIndicator,
-  Badge
+  Badge,
+  Icon
 } from '@cloudscape-design/components';
 import { Task } from '../models/Task';
 
@@ -15,13 +16,15 @@ interface TaskCardProps {
   onEdit: (task: Task) => void;
   onDelete: (taskId: string) => void;
   onStatusChange: (taskId: string, status: Task['status']) => void;
+  onOpenGtdFlow: (taskId: string) => void;
 }
 
 const TaskCard: React.FC<TaskCardProps> = ({
   task,
   onEdit,
   onDelete,
-  onStatusChange
+  onStatusChange,
+  onOpenGtdFlow
 }) => {
   const getStatusIndicator = (status: Task['status']) => {
     switch (status) {
@@ -82,6 +85,7 @@ const TaskCard: React.FC<TaskCardProps> = ({
         <Header
           actions={
             <SpaceBetween direction="horizontal" size="xs">
+              <Button onClick={() => onOpenGtdFlow(task.id)} variant="normal" iconName="external">GTD</Button>
               <Button onClick={() => onEdit(task)} variant="icon" iconName="edit" />
               <Button onClick={() => onDelete(task.id)} variant="icon" iconName="remove" />
             </SpaceBetween>
