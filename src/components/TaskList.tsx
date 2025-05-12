@@ -16,6 +16,7 @@ import {
 import { Task, TaskStatus } from '../models/Task';
 import { FilterCriteria, SortCriteria, TaskSortableField, SortDirection } from '../hooks/useTasks';
 import TaskCard from './TaskCard';
+import GtdFlowModal from './GtdFlowModal';
 
 interface TaskListProps {
   tasks: Task[];
@@ -57,6 +58,8 @@ const TaskList: React.FC<TaskListProps> = ({
   onStatusChange
 }) => {
   const [currentPage, setCurrentPage] = useState(1);
+  const [isGtdModalOpen, setIsGtdModalOpen] = useState(false);
+  const [selectedTaskForGtd, setSelectedTaskForGtd] = useState<string | null>(null);
 
   const itemsPerPage = 9;
 
@@ -100,6 +103,17 @@ const TaskList: React.FC<TaskListProps> = ({
     // setCurrentPage(1); // Optional: Reset page on direction change, usually not needed
   };
 
+  const handleOpenGtdModal = (taskId: string) => {
+    setSelectedTaskForGtd(taskId);
+    setIsGtdModalOpen(true);
+  };
+
+  const handleCloseGtdModal = () => {
+    setIsGtdModalOpen(false);
+    setSelectedTaskForGtd(null);
+    // TODO: モーダルが閉じた後にタスクリストを再読み込み/更新するロジックをここに追加する可能性あり
+  };
+
   const startIndex = (currentPage - 1) * itemsPerPage;
   const paginatedTasks = tasks.slice(startIndex, startIndex + itemsPerPage);
 
@@ -123,98 +137,108 @@ const TaskList: React.FC<TaskListProps> = ({
   }
 
   return (
-    <Cards
-      header={
-        <Header
-          actions={
+    <>
+      <Cards
+        header={
+          <Header
+            actions={
+              <SpaceBetween direction="horizontal" size="m">
+                <Select 
+                  selectedOption={sortCriteria ? sortableFields.find(f => f.value === sortCriteria.field) || null : null}
+                  onChange={({ detail }) => handleSortFieldChange(detail.selectedOption?.value as TaskSortableField || null)}
+                  options={sortableFields} 
+                  placeholder="ソート基準"
+                  empty="基準なし"
+                />
+                <Select
+                  selectedOption={sortCriteria && sortCriteria.direction ? (sortDirections.find(d => d.value === sortCriteria.direction) || null) : null}
+                  onChange={({ detail }) => handleSortDirectionChange(detail.selectedOption.value as SortDirection)}
+                  options={sortDirections} 
+                  disabled={!sortCriteria || !sortCriteria.field} 
+                  placeholder="順序"
+                />
+              </SpaceBetween>
+            }
+          >
+            タスク一覧
+          </Header>
+        }
+        cardDefinition={{
+          header: item => item.title,
+          sections: [
+            {
+              id: 'card',
+              content: item => (
+                <TaskCard
+                  task={item}
+                  onEdit={onEditTask}
+                  onDelete={onDeleteTask}
+                  onStatusChange={onStatusChange}
+                  onOpenGtdFlow={handleOpenGtdModal}
+                />
+              )
+            }
+          ]
+        }}
+        items={paginatedTasks}
+        filter={
+          <SpaceBetween direction="vertical" size="m">
+            <TextFilter
+              filteringText={filterCriteria.searchTerm || ''}
+              filteringPlaceholder="タスクを検索..."
+              filteringAriaLabel="タスクを検索"
+              onChange={({ detail }) => handleTextFilterChange(detail.filteringText)}
+            />
             <SpaceBetween direction="horizontal" size="m">
-              <Select 
-                selectedOption={sortCriteria ? sortableFields.find(f => f.value === sortCriteria.field) || null : null}
-                onChange={({ detail }) => handleSortFieldChange(detail.selectedOption?.value as TaskSortableField || null)}
-                options={sortableFields} 
-                placeholder="ソート基準"
-                empty="基準なし"
+              <SegmentedControl
+                selectedId={filterCriteria.status || 'all'}
+                onChange={({ detail }) => handleStatusFilterChange(detail.selectedId)}
+                options={[
+                  { id: 'all', text: 'ステータス: すべて' },
+                  { id: 'inbox', text: '受信箱' },
+                  { id: 'todo', text: '未着手' },
+                  { id: 'in-progress', text: '進行中' },
+                  { id: 'wait-on', text: '待機中' },
+                  { id: 'done', text: '完了' }
+                ]}
               />
-              <Select
-                selectedOption={sortCriteria && sortCriteria.direction ? (sortDirections.find(d => d.value === sortCriteria.direction) || null) : null}
-                onChange={({ detail }) => handleSortDirectionChange(detail.selectedOption.value as SortDirection)}
-                options={sortDirections} 
-                disabled={!sortCriteria || !sortCriteria.field} 
-                placeholder="順序"
+              <SegmentedControl
+                selectedId={filterCriteria.priority || 'all'}
+                onChange={({ detail }) => handlePriorityFilterChange(detail.selectedId)}
+                options={[
+                  { id: 'all', text: '優先度: すべて' },
+                  { id: 'low', text: '優先度: 低' },
+                  { id: 'medium', text: '優先度: 中' },
+                  { id: 'high', text: '優先度: 高' }
+                ]}
               />
             </SpaceBetween>
-          }
-        >
-          タスク一覧
-        </Header>
-      }
-      cardDefinition={{
-        header: item => item.title,
-        sections: [
-          {
-            id: 'card',
-            content: item => (
-              <TaskCard
-                task={item}
-                onEdit={onEditTask}
-                onDelete={onDeleteTask}
-                onStatusChange={onStatusChange}
-              />
-            )
-          }
-        ]
-      }}
-      items={paginatedTasks}
-      filter={
-        <SpaceBetween direction="vertical" size="m">
-          <TextFilter
-            filteringText={filterCriteria.searchTerm || ''}
-            filteringPlaceholder="タスクを検索..."
-            filteringAriaLabel="タスクを検索"
-            onChange={({ detail }) => handleTextFilterChange(detail.filteringText)}
-          />
-          <SpaceBetween direction="horizontal" size="m">
-            <SegmentedControl
-              selectedId={filterCriteria.status || 'all'}
-              onChange={({ detail }) => handleStatusFilterChange(detail.selectedId)}
-              options={[
-                { id: 'all', text: 'ステータス: すべて' },
-                { id: 'inbox', text: '受信箱' },
-                { id: 'todo', text: '未着手' },
-                { id: 'in-progress', text: '進行中' },
-                { id: 'wait-on', text: '待機中' },
-                { id: 'done', text: '完了' }
-              ]}
-            />
-            <SegmentedControl
-              selectedId={filterCriteria.priority || 'all'}
-              onChange={({ detail }) => handlePriorityFilterChange(detail.selectedId)}
-              options={[
-                { id: 'all', text: '優先度: すべて' },
-                { id: 'low', text: '優先度: 低' },
-                { id: 'medium', text: '優先度: 中' },
-                { id: 'high', text: '優先度: 高' }
-              ]}
-            />
           </SpaceBetween>
-        </SpaceBetween>
-      }
-      pagination={
-        <Pagination
-          currentPageIndex={currentPage}
-          pagesCount={Math.max(1, Math.ceil(tasks.length / itemsPerPage))}
-          onChange={({ detail }) => setCurrentPage(detail.currentPageIndex)}
-        />
-      }
-      empty={
-        <Box textAlign="center" color="inherit">
-          <b>タスクがありません</b>
-          <Box padding={{ bottom: "s" }} variant="p" color="inherit">
-            フィルター条件に一致するタスクがないか、タスクが登録されていません。
+        }
+        pagination={
+          <Pagination
+            currentPageIndex={currentPage}
+            pagesCount={Math.max(1, Math.ceil(tasks.length / itemsPerPage))}
+            onChange={({ detail }) => setCurrentPage(detail.currentPageIndex)}
+          />
+        }
+        empty={
+          <Box textAlign="center" color="inherit">
+            <b>タスクがありません</b>
+            <Box padding={{ bottom: "s" }} variant="p" color="inherit">
+              フィルター条件に一致するタスクがないか、タスクが登録されていません。
+            </Box>
           </Box>
-        </Box>
-      }
-    />
+        }
+      />
+      {isGtdModalOpen && selectedTaskForGtd && (
+        <GtdFlowModal
+          isOpen={isGtdModalOpen}
+          onClose={handleCloseGtdModal}
+          memoId={selectedTaskForGtd}
+        />
+      )}
+    </>
   );
 };
 
