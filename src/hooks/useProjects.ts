@@ -11,8 +11,9 @@ export const useProjects = () => {
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  const [isInitialLoadComplete, setIsInitialLoadComplete] = useState(false);
 
-  // --- Data Persistence ---
+  // --- Data Persistence --- 
 
   const loadProjects = useCallback(async () => {
     setLoading(true);
@@ -21,6 +22,8 @@ export const useProjects = () => {
       const storedProjects = localStorage.getItem(LOCAL_STORAGE_KEY);
       if (storedProjects) {
         setProjects(JSON.parse(storedProjects));
+      } else {
+        setProjects([]); // 明示的に空配列を設定
       }
     } catch (err) {
       console.error('Error loading projects from LocalStorage:', err);
@@ -28,16 +31,7 @@ export const useProjects = () => {
       setProjects([]);
     } finally {
       setLoading(false);
-    }
-  }, []);
-
-  const saveProjects = useCallback(async (projectsToSave: Project[]) => {
-    try {
-      localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(projectsToSave));
-    } catch (err) {
-      console.error('Error saving projects to LocalStorage:', err);
-      setError('Failed to save projects.');
-      throw err;
+      setIsInitialLoadComplete(true); // 初回ロード完了をマーク
     }
   }, []);
 
@@ -46,105 +40,80 @@ export const useProjects = () => {
     loadProjects();
   }, [loadProjects]);
 
-  // --- CRUD Operations ---
+  // Save projects to localStorage when 'projects' state changes after initial load
+  useEffect(() => {
+    if (isInitialLoadComplete) {
+      try {
+        localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(projects));
+        setError(null); // 以前の保存エラーがあればクリア
+      } catch (err) {
+        console.error('Error saving projects to LocalStorage on change:', err);
+        setError('Failed to save project changes.');
+      }
+    }
+  }, [projects, isInitialLoadComplete]);
+
+  // --- CRUD Operations --- 
 
   const createProject = useCallback(
     async (projectData: ProjectFormData): Promise<Project> => {
-      setLoading(true);
-      try {
-        const newProject: Project = {
-          ...projectData,
-          id: uuidv4(),
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        };
-        const updatedProjects = [...projects, newProject];
-        setProjects(updatedProjects);
-        await saveProjects(updatedProjects);
-        return newProject;
-      } catch (err) {
-        setError('Failed to create project.');
-        console.error('Create project error:', err);
-        throw err;
-      } finally {
-        setLoading(false);
-      }
+      const newProject: Project = {
+        ...projectData,
+        id: uuidv4(),
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+      setProjects(prevProjects => [...prevProjects, newProject]);
+      // setError(null); // create操作自体のエラーは別途管理
+      return newProject; // optimistic update
     },
-    [projects, saveProjects]
+    [] // 依存配列から projects と saveProjects を削除
   );
 
-  const updateProject = useCallback(
-    async (id: string, projectData: Partial<ProjectFormData>): Promise<Project | null> => {
-      setLoading(true);
-      try {
-        let updatedProject: Project | null = null;
-        const updatedProjects = projects.map((p) => {
-          if (p.id === id) {
-            updatedProject = {
-              ...p, 
-              ...projectData, 
-              updatedAt: new Date().toISOString(),
-            };
-            return updatedProject;
-          }
-          return p;
-        });
-
-        if (updatedProject) {
-          setProjects(updatedProjects);
-          await saveProjects(updatedProjects);
-          return updatedProject;
-        } else {
-          setError(`Project with ID ${id} not found for update.`);
-          console.error(`Project with ID ${id} not found for update.`);
-          return null;
+  const updateProject = useCallback(async (projectId: string, projectData: ProjectFormData): Promise<Project | null> => {
+    let updatedProjectRef: Project | null = null;
+    setProjects(prevProjects => {
+      const updatedProjects = prevProjects.map(p => {
+        if (p.id === projectId) {
+          updatedProjectRef = {
+            ...p,
+            ...projectData,
+            updatedAt: new Date().toISOString(),
+          };
+          return updatedProjectRef;
         }
-      } catch (err) {
-        setError('Failed to update project.');
-        console.error('Update project error:', err);
-        throw err;
-      } finally {
-        setLoading(false);
-      }
-    },
-    [projects, saveProjects]
-  );
+        return p;
+      });
+      // localStorage.setItem は useEffect で処理
+      return updatedProjects;
+    });
+    // setError(null); // update操作自体のエラーは別途管理
+    return updatedProjectRef; // optimistic update
+  }, []);
 
   const deleteProject = useCallback(
     async (projectId: string): Promise<void> => {
-      setLoading(true);
-      try {
-        const projectExists = projects.some(p => p.id === projectId);
-        if (!projectExists) {
-          setError(`Project with ID ${projectId} not found for deletion.`);
-          console.error(`Project with ID ${projectId} not found for deletion.`);
-          return;
-        }
-        const updatedProjects = projects.filter((p) => p.id !== projectId);
-        setProjects(updatedProjects);
-        await saveProjects(updatedProjects);
-      } catch (err) {
-        setError('Failed to delete project.');
-        console.error('Delete project error:', err);
-        throw err;
-      } finally {
-        setLoading(false);
-      }
+      setProjects(prevProjects => prevProjects.filter((p) => p.id !== projectId));
+      // setError(null); // delete操作自体のエラーは別途管理
     },
-    [projects, saveProjects]
+    [] // 依存配列から projects と saveProjects を削除
   );
 
   const getProjectById = useCallback(
-    (projectId: string): Project | null => {
-        return projects.find((p) => p.id === projectId) || null;
+    (idToFind: string): Project | null => {
+        console.log('[useProjects] getProjectById called. Searching for:', idToFind);
+        console.log('[useProjects] Current projects state for getProjectById:', projects);
+        const foundProject = projects.find((p) => p.id === idToFind) || null;
+        console.log('[useProjects] Project found by getProjectById:', foundProject);
+        return foundProject;
     },
     [projects]
   );
 
   return {
     projects,
-    loading,
-    error,
+    loading, // これは主に初回ロードのローディング状態
+    error,   // ロード時または保存時のエラー
     createProject,
     updateProject,
     deleteProject,

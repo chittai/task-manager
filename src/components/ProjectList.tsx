@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Link } from 'react-router-dom';
 import {
   Table, 
   Box, 
@@ -81,7 +82,7 @@ export const ProjectList: React.FC<ProjectListProps> = () => {
           {
             id: 'name',
             header: 'Project Name',
-            cell: (item: Project) => item.name,
+            cell: (item: Project) => <Link to={`/projects/${item.id}`}>{item.name}</Link>,
             sortingField: 'name',
             isRowHeader: true,
           },

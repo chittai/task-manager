@@ -8,6 +8,10 @@ export interface Project {
   name: string;
   /** Optional description for the project. */
   description?: string;
+  /** Optional due date for the project. */
+  dueDate?: string;
+  /** Optional priority for the project. */
+  priority?: 'low' | 'medium' | 'high';
   /** Timestamp when the project was created. */
   createdAt: string; // ISO 8601 format
   /** Timestamp when the project was last updated. */

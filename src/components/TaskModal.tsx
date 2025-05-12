@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useContext } from 'react';
+import React, { useState, useEffect, useContext, useMemo } from 'react';
 import {
   Modal,
   Box,
@@ -11,7 +11,7 @@ import TaskForm from './TaskForm';
 import CommentList from './CommentList';
 import CommentForm from './CommentForm';
 // import { AuthContext } from '../context/AuthContext'; 
-import { InternalTask } from '../hooks/useTasks';
+import { InternalTask, InternalTaskComment } from '../hooks/useTasks';
 
 interface TaskModalProps {
   visible: boolean;
@@ -109,10 +109,45 @@ const TaskModal: React.FC<TaskModalProps> = ({
     }
   }, [visible]);
 
-  const commentsForList: CommentType[] = [];
-  if (currentTask && currentTask.comments) {
-    commentsForList.push(...currentTask.comments);
-  }
+  const isInternalTask = (task: Task | InternalTask): task is InternalTask => {
+    return task.createdAt instanceof Date;
+  };
+
+  const convertInternalTaskToTask = (internalTask: InternalTask): Task => {
+    return {
+      ...internalTask,
+      createdAt: internalTask.createdAt.toISOString(),
+      updatedAt: internalTask.updatedAt.toISOString(),
+      dueDate: internalTask.dueDate?.toISOString(),
+      comments: internalTask.comments?.map(c => ({
+        ...c,
+        createdAt: c.createdAt.toISOString(),
+        updatedAt: c.updatedAt?.toISOString(),
+      })),
+    };
+  };
+
+  const taskForForm = useMemo((): Task | undefined => {
+    if (!currentTask) return undefined;
+    if (isInternalTask(currentTask)) {
+      return convertInternalTaskToTask(currentTask);
+    }
+    return currentTask as Task;
+  }, [currentTask]);
+
+  const commentsForCommentList = useMemo((): CommentType[] => {
+    if (!currentTask || !currentTask.comments) return [];
+    if (isInternalTask(currentTask)) {
+      // currentTask.comments are InternalTaskComment[]
+      return (currentTask.comments as InternalTaskComment[]).map(c => ({
+        ...c,
+        createdAt: c.createdAt.toISOString(),
+        updatedAt: c.updatedAt?.toISOString(),
+      }));
+    }
+    // currentTask.comments are CommentType[]
+    return currentTask.comments as CommentType[];
+  }, [currentTask]);
 
   return (
     <Modal
@@ -128,7 +163,7 @@ const TaskModal: React.FC<TaskModalProps> = ({
             id: 'task-details',
             content: (
               <TaskForm
-                initialTask={currentTask ? (('createdAt' in currentTask && typeof currentTask.createdAt !== 'string') ? { ...currentTask, createdAt: (currentTask.createdAt as Date).toISOString(), updatedAt: (currentTask.updatedAt as Date).toISOString(), dueDate: (currentTask.dueDate as Date)?.toISOString() } : currentTask as Task) : undefined}
+                initialTask={taskForForm} 
                 onSubmit={handleTaskFormSubmit}
                 onCancel={onDismiss}
                 projects={projects}
@@ -150,7 +185,7 @@ const TaskModal: React.FC<TaskModalProps> = ({
                     />
                     <Box margin={{ top: 'l' }}>
                       <CommentList 
-                        comments={commentsForList} 
+                        comments={commentsForCommentList} 
                         taskId={currentTask.id!} 
                         updateTaskComment={wrappedUpdateTaskComment}
                         deleteTaskComment={wrappedDeleteTaskComment}
