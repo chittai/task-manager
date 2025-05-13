@@ -372,7 +372,10 @@ interface Project {
 
 -   GTDフローの導入により、新しいステータス値 (`'someday-maybe'`, `'reference'`) に対応する専用ページが追加されました。
 -   各ステータス専用のページコンポーネント:
-    -   `InboxListPage.tsx`: インボックス内のタスクを表示・管理するページ (`/inbox`)
+    -   `InboxListPage.tsx`: インボックス内のタスクを表示・管理するページ (`/inbox`)。以下の機能を提供します：
+        -   コンポーネントマウント時に'inbox'ステータスのタスクのみをフィルタリングして表示
+        -   新規タスク追加時にステータスを強制的に'inbox'に設定
+        -   クイック追加機能（AddTaskButton）との連携により、新しいタスクをすぐにInboxに追加可能
     -   `WaitingOnListPage.tsx`: 待機中（他者からの返信待ちなど）のタスクを表示・管理するページ (`/waiting-on`)
     -   `SomedayMaybeListPage.tsx`: 「いつかやる/多分やる」タスクを表示・管理するページ (`/someday-maybe`)
     -   `ReferenceListPage.tsx`: 参照資料として保存されたタスクを表示・管理するページ (`/reference`)
