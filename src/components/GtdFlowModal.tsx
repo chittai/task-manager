@@ -33,7 +33,8 @@ const GtdFlowModal: React.FC<GtdFlowModalProps> = ({ isOpen, onClose, memoId }) 
     moveTaskToReference, 
     setTaskToWaitingOn, 
     convertTaskToProject, 
-    trashTask 
+    trashTask,
+    addTask // 新規タスク作成関数を追加
   } = useTasks();
 
   // GTDフローのステップ管理
@@ -219,10 +220,24 @@ const GtdFlowModal: React.FC<GtdFlowModalProps> = ({ isOpen, onClose, memoId }) 
                 });
             } else {
               // 新規タスクを「いつかやる」リストに追加
-              // TODO: 新規タスク作成処理を実装する
-              setCompletionMessage('アイテムは「いつかやる」リストに追加しました。');
-              setCompletionStatus('success');
-              setIsProcessing(false);
+              setIsProcessing(true);
+              addTask({
+                title: itemName,
+                description: itemDescription,
+                status: 'someday-maybe',
+                priority: 'medium', // デフォルト優先度
+              })
+                .then(() => {
+                  setCompletionMessage('アイテムは「いつかやる」リストに追加しました。');
+                  setCompletionStatus('success');
+                  setIsProcessing(false);
+                })
+                .catch((err: Error) => {
+                  console.error('タスク作成エラー:', err);
+                  setCompletionMessage('タスクの作成中にエラーが発生しました。');
+                  setCompletionStatus('error');
+                  setIsProcessing(false);
+                });
             }
             break;
             
@@ -243,10 +258,24 @@ const GtdFlowModal: React.FC<GtdFlowModalProps> = ({ isOpen, onClose, memoId }) 
                 });
             } else {
               // 新規タスクを参考資料として保存
-              // TODO: 新規タスク作成処理を実装する
-              setCompletionMessage('アイテムは参考資料として保存しました。');
-              setCompletionStatus('success');
-              setIsProcessing(false);
+              setIsProcessing(true);
+              addTask({
+                title: itemName,
+                description: itemDescription,
+                status: 'reference',
+                priority: 'low', // 参考資料は優先度低めをデフォルトに
+              })
+                .then(() => {
+                  setCompletionMessage('アイテムは参考資料として保存しました。');
+                  setCompletionStatus('success');
+                  setIsProcessing(false);
+                })
+                .catch((err: Error) => {
+                  console.error('タスク作成エラー:', err);
+                  setCompletionMessage('タスクの作成中にエラーが発生しました。');
+                  setCompletionStatus('error');
+                  setIsProcessing(false);
+                });
             }
             break;
         }
@@ -283,10 +312,28 @@ const GtdFlowModal: React.FC<GtdFlowModalProps> = ({ isOpen, onClose, memoId }) 
               });
           } else {
             // 新規プロジェクトを作成
-            // TODO: 新規プロジェクト作成処理を実装する
-            setCompletionMessage('新しいプロジェクトを作成しました。');
-            setCompletionStatus('success');
-            setIsProcessing(false);
+            setIsProcessing(true);
+            // プロジェクトとしてのタスクを作成
+            addTask({
+              title: itemName,
+              description: `${itemDescription || ''}
+
+【GTDフローメモ】: プロジェクトとして作成`,
+              status: 'todo',
+              priority: 'medium',
+              // isProjectプロパティはタスク作成時に指定できないため、メモとして記録
+            })
+              .then(() => {
+                setCompletionMessage('新しいプロジェクトを作成しました。プロジェクトリストで確認できます。');
+                setCompletionStatus('success');
+                setIsProcessing(false);
+              })
+              .catch((err: Error) => {
+                console.error('プロジェクト作成エラー:', err);
+                setCompletionMessage('プロジェクトの作成中にエラーが発生しました。');
+                setCompletionStatus('error');
+                setIsProcessing(false);
+              });
           }
         }
         break;
@@ -318,9 +365,27 @@ const GtdFlowModal: React.FC<GtdFlowModalProps> = ({ isOpen, onClose, memoId }) 
               setIsProcessing(false);
             });
           } else {
-            // 新規タスクの場合はメッセージのみ表示
-            setCompletionMessage('2分ルール！今すぐ実行しましょう。');
-            setCompletionStatus('success');
+            // 新規タスクを作成して2分ルールを適用
+            setIsProcessing(true);
+            addTask({
+              title: itemName,
+              description: `${itemDescription || ''}
+
+【GTDフローメモ】: 2分ルール適用、今すぐ実行するタスク`,
+              status: 'todo',
+              priority: 'high', // 2分ルールタスクは優先度高めをデフォルトに
+            })
+              .then(() => {
+                setCompletionMessage('2分ルール適用！今すぐ実行しましょう。タスクをTodoリストに追加しました。');
+                setCompletionStatus('success');
+                setIsProcessing(false);
+              })
+              .catch((err: Error) => {
+                console.error('タスク作成エラー:', err);
+                setCompletionMessage('タスクの作成中にエラーが発生しました。');
+                setCompletionStatus('error');
+                setIsProcessing(false);
+              });
           }
         } else {
           // 「いいえ」なら次のステップへ
@@ -357,9 +422,28 @@ const GtdFlowModal: React.FC<GtdFlowModalProps> = ({ isOpen, onClose, memoId }) 
                 setIsProcessing(false);
               });
           } else {
-            // 新規タスクの場合はメッセージのみ表示
-            setCompletionMessage('タスクを委任します。待機リストに追加しました。');
-            setCompletionStatus('success');
+            // 新規タスクを作成して委任状態に設定
+            setIsProcessing(true);
+            addTask({
+              title: itemName,
+              description: `${itemDescription || ''}
+
+【GTDフローメモ】: ${delegateTo ? `「${delegateTo}」に` : ''}委任したタスク`,
+              status: 'wait-on',
+              priority: 'medium',
+              // delegatedToプロパティはタスク作成時に指定できないため、メモとして記録
+            })
+              .then(() => {
+                setCompletionMessage(`タスクを${delegateTo ? `「${delegateTo}」に` : ''}委任しました。待機リストに追加しました。`);
+                setCompletionStatus('success');
+                setIsProcessing(false);
+              })
+              .catch((err: Error) => {
+                console.error('タスク作成エラー:', err);
+                setCompletionMessage('タスクの作成中にエラーが発生しました。');
+                setCompletionStatus('error');
+                setIsProcessing(false);
+              });
           }
         }
         break;
@@ -401,9 +485,28 @@ const GtdFlowModal: React.FC<GtdFlowModalProps> = ({ isOpen, onClose, memoId }) 
               setIsProcessing(false);
             });
           } else {
-            // 新規タスクの場合はメッセージのみ表示
-            setCompletionMessage(`タスクを ${formattedDate} にスケジュールしました。`);
-            setCompletionStatus('success');
+            // 新規タスクを作成して期日を設定
+            setIsProcessing(true);
+            addTask({
+              title: itemName,
+              description: `${itemDescription || ''}
+
+【GTDフローメモ】: 期日付きタスク`,
+              status: 'todo',
+              priority: 'medium',
+              dueDate: dueDate,
+            })
+              .then(() => {
+                setCompletionMessage(`タスクを ${formattedDate} にスケジュールしました。Todoリストに追加しました。`);
+                setCompletionStatus('success');
+                setIsProcessing(false);
+              })
+              .catch((err: Error) => {
+                console.error('タスク作成エラー:', err);
+                setCompletionMessage('タスクの作成中にエラーが発生しました。');
+                setCompletionStatus('error');
+                setIsProcessing(false);
+              });
           }
         } else {
           // 「いいえ」なら次のアクションリストに追加
@@ -424,9 +527,27 @@ const GtdFlowModal: React.FC<GtdFlowModalProps> = ({ isOpen, onClose, memoId }) 
               setIsProcessing(false);
             });
           } else {
-            // 新規タスクの場合はメッセージのみ表示
-            setCompletionMessage('タスクを「次のアクション」リストに追加しました。');
-            setCompletionStatus('success');
+            // 新規タスクを作成して次のアクションリストに追加
+            setIsProcessing(true);
+            addTask({
+              title: itemName,
+              description: `${itemDescription || ''}
+
+【GTDフローメモ】: 次のアクションリストに追加`,
+              status: 'todo',
+              priority: 'medium',
+            })
+              .then(() => {
+                setCompletionMessage('タスクを「次のアクション」リストに追加しました。');
+                setCompletionStatus('success');
+                setIsProcessing(false);
+              })
+              .catch((err: Error) => {
+                console.error('タスク作成エラー:', err);
+                setCompletionMessage('タスクの作成中にエラーが発生しました。');
+                setCompletionStatus('error');
+                setIsProcessing(false);
+              });
           }
         }
         break;
