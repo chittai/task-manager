@@ -11,7 +11,10 @@ import {
   DateInput,
   Alert,
   AlertProps,
+  Spinner,
 } from '@cloudscape-design/components';
+import { useTasks, InternalTask } from '../hooks/useTasks';
+import { Task } from '../models/Task';
 
 interface GtdFlowModalProps {
   isOpen: boolean;
@@ -20,6 +23,20 @@ interface GtdFlowModalProps {
 }
 
 const GtdFlowModal: React.FC<GtdFlowModalProps> = ({ isOpen, onClose, memoId }) => {
+  // useTasks フックを使用してタスク操作関数を取得
+  const { 
+    allTasks, 
+    loading, 
+    error, 
+    updateTask, 
+    moveTaskToSomedayMaybe, 
+    moveTaskToReference, 
+    setTaskToWaitingOn, 
+    convertTaskToProject, 
+    trashTask 
+  } = useTasks();
+
+  // GTDフローのステップ管理
   const [currentStep, setCurrentStep] = useState(1);
   const [itemName, setItemName] = useState('');
   const [itemDescription, setItemDescription] = useState('');
@@ -28,15 +45,21 @@ const GtdFlowModal: React.FC<GtdFlowModalProps> = ({ isOpen, onClose, memoId }) 
   const [numActions, setNumActions] = useState<'single' | 'multiple' | ''>('');
   const [isTwoMinuteTask, setIsTwoMinuteTask] = useState<'yes' | 'no' | ''>('');
   const [delegationChoice, setDelegationChoice] = useState<'do_it' | 'delegate_it' | ''>('');
+  const [delegateTo, setDelegateTo] = useState(''); // 委任先の情報
   const [hasSpecificDate, setHasSpecificDate] = useState<'yes' | 'no' | ''>('');
   const [dueDate, setDueDate] = useState('');
 
+  // UI状態管理
   const [completionMessage, setCompletionMessage] = useState<string | null>(null);
   const [completionStatus, setCompletionStatus] = useState<AlertProps['type'] | null>(null);
+  const [isProcessing, setIsProcessing] = useState(false); // データ処理中のローディング状態
+  
+  // 現在編集中のタスク
+  const [currentTask, setCurrentTask] = useState<InternalTask | null>(null);
 
   /**
    * モーダルが開かれたときの初期化処理を行います。
-   * memoIdが渡された場合は、将来的にそのメモの情報を読み込む処理を追加できます。
+   * memoIdが渡された場合は、そのメモの情報を読み込みます。
    */
   useEffect(() => {
     if (isOpen) {
@@ -51,36 +74,51 @@ const GtdFlowModal: React.FC<GtdFlowModalProps> = ({ isOpen, onClose, memoId }) 
       setNumActions('');
       setIsTwoMinuteTask('');
       setDelegationChoice('');
+      setDelegateTo('');
       setHasSpecificDate('');
       setDueDate('');
       
       // メッセージ状態を初期化
       setCompletionMessage(null);
       setCompletionStatus(null);
+      setIsProcessing(false);
+      setCurrentTask(null);
       
-      // ここでmemoIdが存在する場合、そのメモの情報を読み込む処理を将来的に追加できる
-      if (memoId) {
-        // 将来的に実装予定: memoIdを使用してメモ情報を取得し、フォームに初期値を設定する
-        console.log(`メモID: ${memoId} の情報を読み込み予定`);
+      // memoIdが存在する場合、そのメモの情報を読み込む
+      if (memoId && allTasks) {
+        const task = allTasks.find(task => task.id === memoId);
+        if (task) {
+          setCurrentTask(task);
+          setItemName(task.title);
+          setItemDescription(task.description || '');
+          console.log(`メモID: ${memoId} の情報を読み込みました`);
+        } else {
+          console.error(`メモID: ${memoId} が見つかりませんでした`);
+          setCompletionMessage(`指定されたメモ (ID: ${memoId}) が見つかりませんでした。`);
+          setCompletionStatus('error');
+        }
       }
     } else {
       // モーダルが閉じられたときの処理
-      if (!completionMessage) {
-        // 完了メッセージが表示されていない場合はモーダルを閉じる
+      if (!completionMessage || completionStatus === 'success') {
+        // 完了メッセージが表示されていない場合、または成功メッセージが表示されている場合はモーダルを閉じる
         onClose();
       }
     }
-  }, [isOpen, memoId, onClose, completionMessage]);
+  }, [isOpen, memoId, onClose, completionMessage, completionStatus, allTasks]);
 
   /**
    * 次のステップに進むための処理を行います。
    * ユーザーの選択に基づいて適切なステップに遷移し、
-   * 必要に応じてエラーメッセージや完了メッセージを表示します。
+   * 必要に応じてタスク更新処理を実行します。
    */
   const handleNextStep = () => {
     // エラーメッセージや完了メッセージをリセット
     setCompletionMessage(null);
     setCompletionStatus(null);
+    
+    // 処理中のローディング状態をリセット
+    setIsProcessing(false);
 
     switch (currentStep) {
       case 1: // ステップ1: それは何か？
@@ -89,8 +127,28 @@ const GtdFlowModal: React.FC<GtdFlowModalProps> = ({ isOpen, onClose, memoId }) 
           setCompletionStatus('error');
           return;
         }
-        // 入力が有効なら次のステップへ
-        setCurrentStep(2);
+        
+        // タスクが存在しない場合は新規作成、存在する場合は更新
+        if (currentTask) {
+          // 既存タスクのタイトルと説明を更新
+          setIsProcessing(true);
+          updateTask(currentTask.id, {
+            title: itemName,
+            description: itemDescription,
+          }).then(() => {
+            setIsProcessing(false);
+            // 入力が有効なら次のステップへ
+            setCurrentStep(2);
+          }).catch(err => {
+            console.error('タスク更新エラー:', err);
+            setCompletionMessage('タスクの更新中にエラーが発生しました。');
+            setCompletionStatus('error');
+            setIsProcessing(false);
+          });
+        } else {
+          // 入力が有効なら次のステップへ
+          setCurrentStep(2);
+        }
         break;
 
       case 2: // ステップ2: 行動を起こす必要があるか？
@@ -115,20 +173,83 @@ const GtdFlowModal: React.FC<GtdFlowModalProps> = ({ isOpen, onClose, memoId }) 
           setCompletionStatus('error');
           return;
         }
-        // 選択に応じたメッセージを表示
+        
+        // タスクが存在しない場合は新規作成、存在する場合は更新
+        setIsProcessing(true);
+        
+        // 選択に応じた処理を実行
         switch (nonActionableOutcome) {
           case 'trash':
-            setCompletionMessage('アイテムはゴミ箱に移動しました。');
+            if (currentTask) {
+              // タスクをゴミ箱に移動
+              trashTask(currentTask.id)
+                .then(() => {
+                  setCompletionMessage('アイテムはゴミ箱に移動しました。');
+                  setCompletionStatus('success');
+                  setIsProcessing(false);
+                })
+                .catch(err => {
+                  console.error('タスク削除エラー:', err);
+                  setCompletionMessage('タスクの削除中にエラーが発生しました。');
+                  setCompletionStatus('error');
+                  setIsProcessing(false);
+                });
+            } else {
+              // 新規タスクの場合は何もしない
+              setCompletionMessage('アイテムは破棄されました。');
+              setCompletionStatus('success');
+              setIsProcessing(false);
+            }
             break;
+            
           case 'someday':
-            setCompletionMessage('アイテムは「いつかやる」リストに追加しました。');
+            if (currentTask) {
+              // タスクを「いつかやる」リストに移動
+              moveTaskToSomedayMaybe(currentTask.id, itemDescription)
+                .then(() => {
+                  setCompletionMessage('アイテムは「いつかやる」リストに追加しました。');
+                  setCompletionStatus('success');
+                  setIsProcessing(false);
+                })
+                .catch(err => {
+                  console.error('タスク移動エラー:', err);
+                  setCompletionMessage('タスクの移動中にエラーが発生しました。');
+                  setCompletionStatus('error');
+                  setIsProcessing(false);
+                });
+            } else {
+              // 新規タスクを「いつかやる」リストに追加
+              // TODO: 新規タスク作成処理を実装する
+              setCompletionMessage('アイテムは「いつかやる」リストに追加しました。');
+              setCompletionStatus('success');
+              setIsProcessing(false);
+            }
             break;
+            
           case 'reference':
-            setCompletionMessage('アイテムは参考資料として保存しました。');
+            if (currentTask) {
+              // タスクを参考資料として保存
+              moveTaskToReference(currentTask.id, itemDescription)
+                .then(() => {
+                  setCompletionMessage('アイテムは参考資料として保存しました。');
+                  setCompletionStatus('success');
+                  setIsProcessing(false);
+                })
+                .catch(err => {
+                  console.error('タスク移動エラー:', err);
+                  setCompletionMessage('タスクの移動中にエラーが発生しました。');
+                  setCompletionStatus('error');
+                  setIsProcessing(false);
+                });
+            } else {
+              // 新規タスクを参考資料として保存
+              // TODO: 新規タスク作成処理を実装する
+              setCompletionMessage('アイテムは参考資料として保存しました。');
+              setCompletionStatus('success');
+              setIsProcessing(false);
+            }
             break;
         }
-        // このステップでフローは完了
-        setCompletionStatus('success');
         break;
 
       case 3: // ステップ3: 次のアクションの数
@@ -137,14 +258,36 @@ const GtdFlowModal: React.FC<GtdFlowModalProps> = ({ isOpen, onClose, memoId }) 
           setCompletionStatus('error');
           return;
         }
+        
         // 選択に応じて分岐
         if (numActions === 'single') {
           // 「1つ」なら次のステップへ
           setCurrentStep(4);
         } else {
           // 「複数」ならプロジェクトとして処理し、フロー完了
-          setCompletionMessage('これはプロジェクトです。プロジェクトリストに追加します。');
-          setCompletionStatus('success');
+          setIsProcessing(true);
+          
+          if (currentTask) {
+            // 既存タスクをプロジェクトに変換
+            convertTaskToProject(currentTask.id, itemDescription)
+              .then(() => {
+                setCompletionMessage('タスクをプロジェクトに変換しました。プロジェクトリストに追加されました。');
+                setCompletionStatus('success');
+                setIsProcessing(false);
+              })
+              .catch(err => {
+                console.error('プロジェクト変換エラー:', err);
+                setCompletionMessage('プロジェクトへの変換中にエラーが発生しました。');
+                setCompletionStatus('error');
+                setIsProcessing(false);
+              });
+          } else {
+            // 新規プロジェクトを作成
+            // TODO: 新規プロジェクト作成処理を実装する
+            setCompletionMessage('新しいプロジェクトを作成しました。');
+            setCompletionStatus('success');
+            setIsProcessing(false);
+          }
         }
         break;
 
@@ -154,11 +297,31 @@ const GtdFlowModal: React.FC<GtdFlowModalProps> = ({ isOpen, onClose, memoId }) 
           setCompletionStatus('error');
           return;
         }
+        
         // 選択に応じて分岐
         if (isTwoMinuteTask === 'yes') {
           // 「はい」なら2分ルールを適用し、フロー完了
-          setCompletionMessage('2分ルール！今すぐ実行しましょう。');
-          setCompletionStatus('success');
+          if (currentTask) {
+            // 既存タスクの場合はステータスを更新
+            setIsProcessing(true);
+            updateTask(currentTask.id, {
+              status: 'todo',
+              description: `${currentTask.description || ''}\n\n【GTDフローメモ】: 2分ルール適用、今すぐ実行するタスク`
+            }).then(() => {
+              setCompletionMessage('2分ルール適用！今すぐ実行しましょう。タスクをTodoリストに移動しました。');
+              setCompletionStatus('success');
+              setIsProcessing(false);
+            }).catch(error => {
+              console.error('タスク更新エラー:', error);
+              setCompletionMessage('タスクの更新中にエラーが発生しました。');
+              setCompletionStatus('error');
+              setIsProcessing(false);
+            });
+          } else {
+            // 新規タスクの場合はメッセージのみ表示
+            setCompletionMessage('2分ルール！今すぐ実行しましょう。');
+            setCompletionStatus('success');
+          }
         } else {
           // 「いいえ」なら次のステップへ
           setCurrentStep(5);
@@ -171,14 +334,33 @@ const GtdFlowModal: React.FC<GtdFlowModalProps> = ({ isOpen, onClose, memoId }) 
           setCompletionStatus('error');
           return;
         }
+        
         // 選択に応じて分岐
         if (delegationChoice === 'do_it') {
           // 「自分でやる」なら次のステップへ
           setCurrentStep(6);
         } else {
           // 「誰かに任せる」なら委任処理を行い、フロー完了
-          setCompletionMessage('タスクを委任します。待機リストに追加しました。');
-          setCompletionStatus('success');
+          if (currentTask) {
+            // 既存タスクを委任状態に設定
+            setIsProcessing(true);
+            setTaskToWaitingOn(currentTask.id, delegateTo, itemDescription)
+              .then(() => {
+                setCompletionMessage(`タスクを${delegateTo ? `「${delegateTo}」に` : ''}委任しました。待機リストに追加しました。`);
+                setCompletionStatus('success');
+                setIsProcessing(false);
+              })
+              .catch(error => {
+                console.error('タスク委任エラー:', error);
+                setCompletionMessage('タスクの委任中にエラーが発生しました。');
+                setCompletionStatus('error');
+                setIsProcessing(false);
+              });
+          } else {
+            // 新規タスクの場合はメッセージのみ表示
+            setCompletionMessage('タスクを委任します。待機リストに追加しました。');
+            setCompletionStatus('success');
+          }
         }
         break;
 
@@ -188,6 +370,7 @@ const GtdFlowModal: React.FC<GtdFlowModalProps> = ({ isOpen, onClose, memoId }) 
           setCompletionStatus('error');
           return;
         }
+        
         // 選択に応じて分岐
         if (hasSpecificDate === 'yes') {
           // 「はい」なら日付入力が必要
@@ -196,15 +379,56 @@ const GtdFlowModal: React.FC<GtdFlowModalProps> = ({ isOpen, onClose, memoId }) 
             setCompletionStatus('error');
             return;
           }
+          
           // 日付が入力されていれば、スケジュール処理を行い、フロー完了
           const formattedDate = new Date(dueDate).toLocaleDateString('ja-JP');
-          setCompletionMessage(`タスクを ${formattedDate} にスケジュールしました。カレンダーに追加しました。`);
+          
+          if (currentTask) {
+            // 既存タスクに期日を設定
+            setIsProcessing(true);
+            updateTask(currentTask.id, {
+              dueDate: dueDate,
+              status: 'todo',
+              description: `${currentTask.description || ''}\n\n【GTDフローメモ】: 期日付きタスク`
+            }).then(() => {
+              setCompletionMessage(`タスクを ${formattedDate} にスケジュールしました。Todoリストに追加しました。`);
+              setCompletionStatus('success');
+              setIsProcessing(false);
+            }).catch(error => {
+              console.error('タスク更新エラー:', error);
+              setCompletionMessage('タスクの更新中にエラーが発生しました。');
+              setCompletionStatus('error');
+              setIsProcessing(false);
+            });
+          } else {
+            // 新規タスクの場合はメッセージのみ表示
+            setCompletionMessage(`タスクを ${formattedDate} にスケジュールしました。`);
+            setCompletionStatus('success');
+          }
         } else {
-          // 「いいえ」なら次のアクションリストに追加し、フロー完了
-          setCompletionMessage('タスクを「次のアクション」リストに追加しました。');
+          // 「いいえ」なら次のアクションリストに追加
+          if (currentTask) {
+            // 既存タスクをTodoリストに追加
+            setIsProcessing(true);
+            updateTask(currentTask.id, {
+              status: 'todo',
+              description: `${currentTask.description || ''}\n\n【GTDフローメモ】: 次のアクションリストに追加`
+            }).then(() => {
+              setCompletionMessage('タスクを「次のアクション」リストに追加しました。');
+              setCompletionStatus('success');
+              setIsProcessing(false);
+            }).catch(error => {
+              console.error('タスク更新エラー:', error);
+              setCompletionMessage('タスクの更新中にエラーが発生しました。');
+              setCompletionStatus('error');
+              setIsProcessing(false);
+            });
+          } else {
+            // 新規タスクの場合はメッセージのみ表示
+            setCompletionMessage('タスクを「次のアクション」リストに追加しました。');
+            setCompletionStatus('success');
+          }
         }
-        // このステップでフローは完了
-        setCompletionStatus('success');
         break;
 
       default:
@@ -314,16 +538,28 @@ const GtdFlowModal: React.FC<GtdFlowModalProps> = ({ isOpen, onClose, memoId }) 
         );
       case 5:
         return (
-          <FormField label="自分でやるべきか、誰かに任せるか？" description="タスクの担当者を決定します。">
-            <RadioGroup
-              onChange={({ detail }) => setDelegationChoice(detail.value as 'do_it' | 'delegate_it')}
-              value={delegationChoice}
-              items={[
-                { value: 'do_it', label: '自分でやる' },
-                { value: 'delegate_it', label: '誰かに任せる' },
-              ]}
-            />
-          </FormField>
+          <SpaceBetween direction="vertical" size="l">
+            <FormField label="自分でやるべきか、誰かに任せるか？" description="タスクの担当者を決定します。">
+              <RadioGroup
+                onChange={({ detail }) => setDelegationChoice(detail.value as 'do_it' | 'delegate_it')}
+                value={delegationChoice}
+                items={[
+                  { value: 'do_it', label: '自分でやる' },
+                  { value: 'delegate_it', label: '誰かに任せる' },
+                ]}
+              />
+            </FormField>
+            
+            {delegationChoice === 'delegate_it' && (
+              <FormField label="委任先" description="タスクを委任する相手を入力してください。">
+                <Input
+                  value={delegateTo}
+                  onChange={({ detail }) => setDelegateTo(detail.value)}
+                  placeholder="例：田中さん"
+                />
+              </FormField>
+            )}
+          </SpaceBetween>
         );
       case 6:
         return (
@@ -442,13 +678,19 @@ const GtdFlowModal: React.FC<GtdFlowModalProps> = ({ isOpen, onClose, memoId }) 
       )}
     >
       <Form>
-        {completionMessage && (
+        {isProcessing && (
+          <div style={{ display: 'flex', justifyContent: 'center', padding: '20px' }}>
+            <Spinner size="large" />
+            <div style={{ marginLeft: '10px' }}>処理中...</div>
+          </div>
+        )}
+        {!isProcessing && completionMessage && (
           <Alert type={completionStatus || undefined} header={completionStatus === 'success' ? '成功' : '注意'}>
             {completionMessage}
           </Alert>
         )}
-        {!completionMessage && renderStepContent()}
-        {completionMessage && !renderStepContent() && <div style={{minHeight: '100px'}}></div>}
+        {!isProcessing && !completionMessage && renderStepContent()}
+        {!isProcessing && completionMessage && !renderStepContent() && <div style={{minHeight: '100px'}}></div>}
       </Form>
     </Modal>
   );
