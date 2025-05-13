@@ -25,6 +25,7 @@ export interface InternalTask extends Omit<Task, 'dueDate' | 'createdAt' | 'upda
   updatedAt: Date;
   comments?: InternalTaskComment[];
   delegatedTo?: string; // 委任先の情報を追加
+  isProject?: boolean; // プロジェクトフラグ
 }
 
 export interface InternalTaskComment extends Omit<TaskCommentModel, 'createdAt' | 'updatedAt'> {
@@ -266,134 +267,226 @@ export const useTasks = () => {
   // --- GTD Flow Related Functions ---
   
   // メモを「いつかやるリスト」に移動
-  const moveTaskToSomedayMaybe = useCallback((taskId: string, notes?: string) => {
-    setTasks(prevTasks => {
-      return prevTasks.map(task => {
-        if (task.id === taskId) {
-          // 履歴エントリを作成
-          const historyEntry: TaskHistoryEntry = {
-            timestamp: new Date().toISOString(),
-            change: `タスクが「いつかやるリスト」に移動されました`
-          };
+  const moveTaskToSomedayMaybe = useCallback((taskId: string, notes?: string): Promise<InternalTask | null> => {
+    return new Promise((resolve, reject) => {
+      try {
+        let updatedTask: InternalTask | null = null;
+        
+        setTasks(prevTasks => {
+          const newTasks = prevTasks.map(task => {
+            if (task.id === taskId) {
+              // 履歴エントリを作成
+              const historyEntry: TaskHistoryEntry = {
+                timestamp: new Date().toISOString(),
+                change: `タスクが「いつかやるリスト」に移動されました`
+              };
+              
+              // 説明に追加のメモがあれば追加
+              const updatedDescription = notes 
+                ? `${task.description || ''}\n\n【GTDフロー追加メモ】: ${notes}` 
+                : task.description;
+              
+              const taskWithUpdates: InternalTask = {
+                ...task,
+                status: 'someday-maybe' as TaskStatus,
+                description: updatedDescription,
+                updatedAt: new Date(),
+                history: [...(task.history || []), historyEntry]
+              };
+              
+              // 更新されたタスクを保存
+              updatedTask = taskWithUpdates;
+              
+              return taskWithUpdates;
+            }
+            return task;
+          });
           
-          // 説明に追加のメモがあれば追加
-          const updatedDescription = notes 
-            ? `${task.description || ''}\n\n【GTDフロー追加メモ】: ${notes}` 
-            : task.description;
-          
-          return {
-            ...task,
-            status: 'someday-maybe' as TaskStatus,
-            description: updatedDescription,
-            updatedAt: new Date(),
-            history: [...(task.history || []), historyEntry]
-          };
-        }
-        return task;
-      });
+          return newTasks;
+        });
+        
+        // 非同期処理の完了を待つために少し遅延させる
+        setTimeout(() => {
+          resolve(updatedTask);
+        }, 100);
+      } catch (error) {
+        reject(error);
+      }
     });
   }, []);
   
   // メモを「参照資料」に分類
-  const moveTaskToReference = useCallback((taskId: string, notes?: string) => {
-    setTasks(prevTasks => {
-      return prevTasks.map(task => {
-        if (task.id === taskId) {
-          // 履歴エントリを作成
-          const historyEntry: TaskHistoryEntry = {
-            timestamp: new Date().toISOString(),
-            change: `タスクが「参照資料」に分類されました`
-          };
+  const moveTaskToReference = useCallback((taskId: string, notes?: string): Promise<InternalTask | null> => {
+    return new Promise((resolve, reject) => {
+      try {
+        let updatedTask: InternalTask | null = null;
+        
+        setTasks(prevTasks => {
+          const newTasks = prevTasks.map(task => {
+            if (task.id === taskId) {
+              // 履歴エントリを作成
+              const historyEntry: TaskHistoryEntry = {
+                timestamp: new Date().toISOString(),
+                change: `タスクが「参照資料」に分類されました`
+              };
+              
+              // 説明に追加のメモがあれば追加
+              const updatedDescription = notes 
+                ? `${task.description || ''}\n\n【GTDフロー追加メモ】: ${notes}` 
+                : task.description;
+              
+              const taskWithUpdates: InternalTask = {
+                ...task,
+                status: 'reference' as TaskStatus,
+                description: updatedDescription,
+                updatedAt: new Date(),
+                history: [...(task.history || []), historyEntry]
+              };
+              
+              // 更新されたタスクを保存
+              updatedTask = taskWithUpdates;
+              
+              return taskWithUpdates;
+            }
+            return task;
+          });
           
-          // 説明に追加のメモがあれば追加
-          const updatedDescription = notes 
-            ? `${task.description || ''}\n\n【GTDフロー追加メモ】: ${notes}` 
-            : task.description;
-          
-          return {
-            ...task,
-            status: 'reference' as TaskStatus,
-            description: updatedDescription,
-            updatedAt: new Date(),
-            history: [...(task.history || []), historyEntry]
-          };
-        }
-        return task;
-      });
+          return newTasks;
+        });
+        
+        // 非同期処理の完了を待つために少し遅延させる
+        setTimeout(() => {
+          resolve(updatedTask);
+        }, 100);
+      } catch (error) {
+        reject(error);
+      }
     });
   }, []);
   
   // メモを「連絡待ち」に設定
-  const setTaskToWaitingOn = useCallback((taskId: string, delegatedTo?: string, notes?: string) => {
-    setTasks(prevTasks => {
-      return prevTasks.map(task => {
-        if (task.id === taskId) {
-          // 履歴エントリを作成
-          const historyEntry: TaskHistoryEntry = {
-            timestamp: new Date().toISOString(),
-            change: delegatedTo 
-              ? `タスクが「${delegatedTo}」に委任され、連絡待ちになりました` 
-              : `タスクが「連絡待ち」に設定されました`
-          };
+  const setTaskToWaitingOn = useCallback((taskId: string, delegatedTo?: string, notes?: string): Promise<InternalTask | null> => {
+    return new Promise((resolve, reject) => {
+      try {
+        let updatedTask: InternalTask | null = null;
+        
+        setTasks(prevTasks => {
+          const newTasks = prevTasks.map(task => {
+            if (task.id === taskId) {
+              // 履歴エントリを作成
+              const historyEntry: TaskHistoryEntry = {
+                timestamp: new Date().toISOString(),
+                change: delegatedTo 
+                  ? `タスクが「${delegatedTo}」に委任され、連絡待ちになりました` 
+                  : `タスクが「連絡待ち」に設定されました`
+              };
+              
+              // 説明に委任先と追加のメモを追加
+              let updatedDescription = task.description || '';
+              
+              if (delegatedTo) {
+                updatedDescription += `\n\n【委任先】: ${delegatedTo}`;
+              }
+              
+              if (notes) {
+                updatedDescription += `\n\n【GTDフロー追加メモ】: ${notes}`;
+              }
+              
+              const taskWithUpdates: InternalTask = {
+                ...task,
+                status: 'wait-on' as TaskStatus,
+                description: updatedDescription,
+                updatedAt: new Date(),
+                delegatedTo: delegatedTo || task.delegatedTo, // delegatedToプロパティが存在する場合は更新
+                history: [...(task.history || []), historyEntry]
+              };
+              
+              // 更新されたタスクを保存
+              updatedTask = taskWithUpdates;
+              
+              return taskWithUpdates;
+            }
+            return task;
+          });
           
-          // 説明に委任先と追加のメモを追加
-          let updatedDescription = task.description || '';
-          
-          if (delegatedTo) {
-            updatedDescription += `\n\n【委任先】: ${delegatedTo}`;
-          }
-          
-          if (notes) {
-            updatedDescription += `\n\n【GTDフロー追加メモ】: ${notes}`;
-          }
-          
-          return {
-            ...task,
-            status: 'wait-on',
-            description: updatedDescription,
-            updatedAt: new Date(),
-            delegatedTo: delegatedTo || task.delegatedTo, // delegatedToプロパティが存在する場合は更新
-            history: [...(task.history || []), historyEntry]
-          };
-        }
-        return task;
-      });
+          return newTasks;
+        });
+        
+        // 非同期処理の完了を待つために少し遅延させる
+        setTimeout(() => {
+          resolve(updatedTask);
+        }, 100);
+      } catch (error) {
+        reject(error);
+      }
     });
   }, []);
   
   // タスクをプロジェクト化（複数アクションが必要な場合）
-  const convertTaskToProject = useCallback((taskId: string, notes?: string) => {
-    setTasks(prevTasks => {
-      return prevTasks.map(task => {
-        if (task.id === taskId) {
-          // 履歴エントリを作成
-          const historyEntry: TaskHistoryEntry = {
-            timestamp: new Date().toISOString(),
-            change: `タスクがプロジェクトに変換されました`
-          };
+  const convertTaskToProject = useCallback((taskId: string, notes?: string): Promise<InternalTask | null> => {
+    return new Promise((resolve, reject) => {
+      try {
+        let updatedTask: InternalTask | null = null;
+        
+        setTasks(prevTasks => {
+          const newTasks = prevTasks.map(task => {
+            if (task.id === taskId) {
+              // 履歴エントリを作成
+              const historyEntry: TaskHistoryEntry = {
+                timestamp: new Date().toISOString(),
+                change: `タスクがプロジェクトに変換されました`
+              };
+              
+              // 説明に追加のメモがあれば追加
+              const updatedDescription = notes 
+                ? `${task.description || ''}\n\n【GTDフロー追加メモ】: ${notes}` 
+                : task.description;
+              
+              const taskWithUpdates: InternalTask = {
+                ...task,
+                isProject: true, // プロジェクトフラグを設定
+                description: updatedDescription,
+                updatedAt: new Date(),
+                history: [...(task.history || []), historyEntry]
+              };
+              
+              // 更新されたタスクを保存
+              updatedTask = taskWithUpdates;
+              
+              return taskWithUpdates;
+            }
+            return task;
+          });
           
-          // 説明に追加のメモがあれば追加
-          const updatedDescription = notes 
-            ? `${task.description || ''}\n\n【GTDフロー追加メモ】: ${notes}` 
-            : task.description;
-          
-          return {
-            ...task,
-            isProject: true, // プロジェクトフラグを設定
-            description: updatedDescription,
-            updatedAt: new Date(),
-            history: [...(task.history || []), historyEntry]
-          };
-        }
-        return task;
-      });
+          return newTasks;
+        });
+        
+        // 非同期処理の完了を待つために少し遅延させる
+        setTimeout(() => {
+          resolve(updatedTask);
+        }, 100);
+      } catch (error) {
+        reject(error);
+      }
     });
   }, []);
   
   // タスクを削除（ゴミ箱へ）
-  const trashTask = useCallback((taskId: string) => {
-    setTasks(prevTasks => {
-      return prevTasks.filter(task => task.id !== taskId);
+  const trashTask = useCallback((taskId: string): Promise<boolean> => {
+    return new Promise((resolve, reject) => {
+      try {
+        setTasks(prevTasks => {
+          const newTasks = prevTasks.filter(task => task.id !== taskId);
+          return newTasks;
+        });
+        
+        // 非同期処理の完了を待つために少し遅延させる
+        setTimeout(() => {
+          resolve(true);
+        }, 100);
+      } catch (error) {
+        reject(error);
+      }
     });
   }, []);
   
