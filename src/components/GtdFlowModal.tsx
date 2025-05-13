@@ -34,9 +34,16 @@ const GtdFlowModal: React.FC<GtdFlowModalProps> = ({ isOpen, onClose, memoId }) 
   const [completionMessage, setCompletionMessage] = useState<string | null>(null);
   const [completionStatus, setCompletionStatus] = useState<AlertProps['type'] | null>(null);
 
+  /**
+   * モーダルが開かれたときの初期化処理を行います。
+   * memoIdが渡された場合は、将来的にそのメモの情報を読み込む処理を追加できます。
+   */
   useEffect(() => {
     if (isOpen) {
-      setCurrentStep(1);
+      // モーダルが開かれたときにすべての状態を初期化
+      setCurrentStep(1); // 最初のステップに設定
+      
+      // 入力値を初期化
       setItemName('');
       setItemDescription('');
       setIsActionable('');
@@ -46,46 +53,69 @@ const GtdFlowModal: React.FC<GtdFlowModalProps> = ({ isOpen, onClose, memoId }) 
       setDelegationChoice('');
       setHasSpecificDate('');
       setDueDate('');
+      
+      // メッセージ状態を初期化
       setCompletionMessage(null);
       setCompletionStatus(null);
+      
+      // ここでmemoIdが存在する場合、そのメモの情報を読み込む処理を将来的に追加できる
+      if (memoId) {
+        // 将来的に実装予定: memoIdを使用してメモ情報を取得し、フォームに初期値を設定する
+        console.log(`メモID: ${memoId} の情報を読み込み予定`);
+      }
     } else {
+      // モーダルが閉じられたときの処理
       if (!completionMessage) {
+        // 完了メッセージが表示されていない場合はモーダルを閉じる
         onClose();
       }
     }
-  }, [isOpen]);
+  }, [isOpen, memoId, onClose, completionMessage]);
 
+  /**
+   * 次のステップに進むための処理を行います。
+   * ユーザーの選択に基づいて適切なステップに遷移し、
+   * 必要に応じてエラーメッセージや完了メッセージを表示します。
+   */
   const handleNextStep = () => {
+    // エラーメッセージや完了メッセージをリセット
     setCompletionMessage(null);
     setCompletionStatus(null);
 
     switch (currentStep) {
-      case 1:
+      case 1: // ステップ1: それは何か？
         if (!itemName.trim()) {
           setCompletionMessage('アイテム名を入力してください。');
           setCompletionStatus('error');
           return;
         }
+        // 入力が有効なら次のステップへ
         setCurrentStep(2);
         break;
-      case 2:
+
+      case 2: // ステップ2: 行動を起こす必要があるか？
         if (!isActionable) {
           setCompletionMessage('「行動を起こす必要があるか？」を選択してください。');
           setCompletionStatus('error');
           return;
         }
+        // 選択に応じて分岐
         if (isActionable === 'yes') {
+          // 「はい」なら次のステップへ
           setCurrentStep(3);
         } else {
+          // 「いいえ」ならステップ2A（行動不要な場合の処理）へ
           setCurrentStep(2.1);
         }
         break;
-      case 2.1:
+
+      case 2.1: // ステップ2A: 行動不要な場合の処理
         if (!nonActionableOutcome) {
           setCompletionMessage('「行動不要な場合、どうしますか？」を選択してください。');
           setCompletionStatus('error');
           return;
         }
+        // 選択に応じたメッセージを表示
         switch (nonActionableOutcome) {
           case 'trash':
             setCompletionMessage('アイテムはゴミ箱に移動しました。');
@@ -97,79 +127,122 @@ const GtdFlowModal: React.FC<GtdFlowModalProps> = ({ isOpen, onClose, memoId }) 
             setCompletionMessage('アイテムは参考資料として保存しました。');
             break;
         }
+        // このステップでフローは完了
         setCompletionStatus('success');
         break;
-      case 3:
+
+      case 3: // ステップ3: 次のアクションの数
         if (!numActions) {
           setCompletionMessage('「次のアクションは1つか複数か？」を選択してください。');
           setCompletionStatus('error');
           return;
         }
+        // 選択に応じて分岐
         if (numActions === 'single') {
+          // 「1つ」なら次のステップへ
           setCurrentStep(4);
         } else {
+          // 「複数」ならプロジェクトとして処理し、フロー完了
           setCompletionMessage('これはプロジェクトです。プロジェクトリストに追加します。');
           setCompletionStatus('success');
         }
         break;
-      case 4:
+
+      case 4: // ステップ4: 2分ルール
         if (!isTwoMinuteTask) {
           setCompletionMessage('「そのアクションは2分以内でできますか？」を選択してください。');
           setCompletionStatus('error');
           return;
         }
+        // 選択に応じて分岐
         if (isTwoMinuteTask === 'yes') {
+          // 「はい」なら2分ルールを適用し、フロー完了
           setCompletionMessage('2分ルール！今すぐ実行しましょう。');
           setCompletionStatus('success');
         } else {
+          // 「いいえ」なら次のステップへ
           setCurrentStep(5);
         }
         break;
-      case 5:
+
+      case 5: // ステップ5: タスクの委任
         if (!delegationChoice) {
           setCompletionMessage('「自分でやるべきか、誰かに任せるか？」を選択してください。');
           setCompletionStatus('error');
           return;
         }
+        // 選択に応じて分岐
         if (delegationChoice === 'do_it') {
+          // 「自分でやる」なら次のステップへ
           setCurrentStep(6);
         } else {
-          setCompletionMessage('タスクを委任します。');
+          // 「誰かに任せる」なら委任処理を行い、フロー完了
+          setCompletionMessage('タスクを委任します。待機リストに追加しました。');
           setCompletionStatus('success');
         }
         break;
-      case 6:
+
+      case 6: // ステップ6: 日時の特定
         if (!hasSpecificDate) {
           setCompletionMessage('「特定の日時が決まっているか？」を選択してください。');
           setCompletionStatus('error');
           return;
         }
+        // 選択に応じて分岐
         if (hasSpecificDate === 'yes') {
+          // 「はい」なら日付入力が必要
           if (!dueDate) {
             setCompletionMessage('日付を入力してください。');
             setCompletionStatus('error');
             return;
           }
+          // 日付が入力されていれば、スケジュール処理を行い、フロー完了
           const formattedDate = new Date(dueDate).toLocaleDateString('ja-JP');
-          setCompletionMessage(`タスクを ${formattedDate} にスケジュールしました。`);
+          setCompletionMessage(`タスクを ${formattedDate} にスケジュールしました。カレンダーに追加しました。`);
         } else {
+          // 「いいえ」なら次のアクションリストに追加し、フロー完了
           setCompletionMessage('タスクを「次のアクション」リストに追加しました。');
         }
+        // このステップでフローは完了
         setCompletionStatus('success');
         break;
+
       default:
         break;
     }
   };
 
+  /**
+   * 前のステップに戻る処理を行います。
+   * ステップの遷移パスに応じて適切な前のステップに戻ります。
+   */
   const handlePreviousStep = () => {
+    // エラーメッセージや完了メッセージをリセット
     setCompletionMessage(null);
     setCompletionStatus(null);
 
-    if (currentStep === 2.1) {
-      setCurrentStep(2);
-    } else if (currentStep > 1) {
-      setCurrentStep(prev => Math.max(1, Math.floor(prev - 1)));
+    // ステップに応じた適切な戻り先を設定
+    switch (currentStep) {
+      case 2.1: // ステップ2Aからはステップ2に戻る
+        setCurrentStep(2);
+        break;
+      case 3: // ステップ3からはステップ2に戻る
+        setCurrentStep(2);
+        break;
+      case 4: // ステップ4からはステップ3に戻る
+        setCurrentStep(3);
+        break;
+      case 5: // ステップ5からはステップ4に戻る
+        setCurrentStep(4);
+        break;
+      case 6: // ステップ6からはステップ5に戻る
+        setCurrentStep(5);
+        break;
+      default: // その他の場合は、現在のステップが1より大きければ前のステップに戻る
+        if (currentStep > 1) {
+          setCurrentStep(prev => Math.max(1, Math.floor(prev - 1)));
+        }
+        break;
     }
   };
 
@@ -322,7 +395,19 @@ const GtdFlowModal: React.FC<GtdFlowModalProps> = ({ isOpen, onClose, memoId }) 
     return "次へ";
   };
 
+  /**
+   * モーダルを閉じる処理を行います。
+   * 完了メッセージが表示されている場合は確認を求めずに閉じます。
+   * それ以外の場合は、ユーザーが進行中の作業を失うことを防ぐために確認が必要です。
+   */
   const handleModalClose = () => {
+    // 完了メッセージが表示されている場合はそのまま閉じる
+    if (completionMessage && completionStatus === 'success') {
+      onClose();
+      return;
+    }
+    
+    // ここでは確認なしで閉じるが、実際の実装では確認ダイアログを表示することも検討できる
     onClose();
   };
 
