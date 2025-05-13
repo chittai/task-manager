@@ -122,7 +122,7 @@ interface Task {
   id: string; // 一意の識別子
   title: string; // タスクのタイトル
   description: string; // タスクの詳細説明
-  status: 'inbox' | 'todo' | 'in-progress' | 'done' | 'wait-on'; // タスクのステータス
+  status: 'inbox' | 'todo' | 'in-progress' | 'done' | 'wait-on' | 'someday-maybe' | 'reference'; // タスクのステータス
   priority: 'low' | 'medium' | 'high'; // タスクの優先度
   dueDate?: string; // 期限日 (ISO 8601 format, オプション)
   createdAt: string; // 作成日時 (ISO 8601 format)
@@ -347,6 +347,10 @@ interface Project {
 -   アプリケーション全体のナビゲーションは、`src/App.tsx` 内で Cloudscape Design System の `AppLayout` コンポーネントと `SideNavigation` コンポーネントを使用して実現されています。
 -   画面左側にサイドナビゲーションパネルが表示され、以下の主要ページへのリンクが提供されます:
     -   タスク一覧 (`/`)
+    -   インボックス (`/inbox`)
+    -   待機中タスク (`/waiting-on`)
+    -   いつかやるリスト (`/someday-maybe`)
+    -   資料リスト (`/reference`)
     -   プロジェクト一覧 (`/projects`)
     -   プロジェクト詳細 (`/projects/:projectId`)
 -   `react-router-dom` を利用してクライアントサイドルーティングを行い、ページ遷移を実現しています。
@@ -362,3 +366,14 @@ interface Project {
 -   一覧表示コンポーネント (`TaskList.tsx`, `ProjectList.tsx`) は、対応するカスタムフックからデータを取得し、テーブル形式で表示します。
 -   作成・編集操作は、モーダルウィンドウ (`TaskModal.tsx`, `ProjectModal.tsx`) 内のフォームコンポーネント (`TaskForm.tsx`, `ProjectForm.tsx`) を通じて行われます。
 -   フォーム送信時には、対応するカスタムフックの関数（例: `addTask`, `updateProject`）が呼び出され、データが更新されます。
+-   GTDフロー処理は、`GtdFlowModal.tsx` コンポーネントを通じて行われ、ユーザーの選択に応じてタスクのステータスや属性が更新されます。
+
+### 5.4. GTDフロー関連ページ
+
+-   GTDフローの導入により、新しいステータス値 (`'someday-maybe'`, `'reference'`) に対応する専用ページが追加されました。
+-   各ステータス専用のページコンポーネント:
+    -   `InboxListPage.tsx`: インボックス内のタスクを表示・管理するページ (`/inbox`)
+    -   `WaitingOnListPage.tsx`: 待機中（他者からの返信待ちなど）のタスクを表示・管理するページ (`/waiting-on`)
+    -   `SomedayMaybeListPage.tsx`: 「いつかやる/多分やる」タスクを表示・管理するページ (`/someday-maybe`)
+    -   `ReferenceListPage.tsx`: 参照資料として保存されたタスクを表示・管理するページ (`/reference`)
+-   各ページは、対応するステータスでフィルタリングされたタスクリストを表示し、タスクの編集・削除・ステータス変更機能を提供します。

@@ -19,6 +19,10 @@ import { ProjectList } from './components/ProjectList';
 import { AddTaskButton } from './components/AddTaskButton'; 
 import { useProjects } from './hooks/useProjects';
 import ProjectDetailPage from './pages/ProjectDetailPage';
+import InboxListPage from './pages/InboxListPage';
+import WaitingOnListPage from './pages/WaitingOnListPage';
+import SomedayMaybeListPage from './pages/SomedayMaybeListPage';
+import ReferenceListPage from './pages/ReferenceListPage';
 
 const NavigationWrapper: React.FC = () => {
   const navigate = useNavigate();
@@ -47,6 +51,10 @@ const NavigationWrapper: React.FC = () => {
           }}
           items={[
             { type: 'link', text: 'タスク一覧', href: '/' },
+            { type: 'link', text: 'インボックス', href: '/inbox' },
+            { type: 'link', text: '待機中タスク', href: '/waiting-on' },
+            { type: 'link', text: 'いつかやるリスト', href: '/someday-maybe' },
+            { type: 'link', text: '資料リスト', href: '/reference' },
             { type: 'link', text: 'プロジェクト一覧', href: '/projects' },
           ]}
         />
@@ -191,6 +199,10 @@ const AppContent: React.FC = () => {
           </SpaceBetween>
         </ContentLayout>
       } />
+      <Route path="/inbox" element={<InboxListPage />} />
+      <Route path="/waiting-on" element={<WaitingOnListPage />} />
+      <Route path="/someday-maybe" element={<SomedayMaybeListPage />} />
+      <Route path="/reference" element={<ReferenceListPage />} />
       <Route path="/projects" element={<ProjectList />} />
       <Route path="/projects/:projectId" element={<ProjectDetailPage />} />
     </Routes>
