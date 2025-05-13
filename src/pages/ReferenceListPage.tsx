@@ -37,6 +37,25 @@ const ReferenceListPage: React.FC = () => {
   const [isEditModalVisible, setIsEditModalVisible] = useState(false);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
 
+  // InternalTask[] から Task[] への変換
+  const tasksForTaskList = useMemo(() => {
+    return tasks.map((internalTask: InternalTask): Task => {
+      const commentsForTask: ProjectComment[] | undefined = internalTask.comments?.map(comment => ({
+        ...comment,
+        createdAt: comment.createdAt.toISOString(),
+        updatedAt: comment.updatedAt?.toISOString(), 
+      }));
+
+      return {
+        ...internalTask,
+        createdAt: internalTask.createdAt.toISOString(),
+        updatedAt: internalTask.updatedAt.toISOString(),
+        dueDate: internalTask.dueDate?.toISOString(),
+        comments: commentsForTask, 
+      };
+    });
+  }, [tasks]);
+
   // コンポーネントマウント時に'reference'フィルターを適用
   React.useEffect(() => {
     setFilterCriteria({ ...filterCriteria, status: 'reference' });
@@ -79,25 +98,6 @@ const ReferenceListPage: React.FC = () => {
       </ContentLayout>
     );
   }
-
-  // InternalTask[] から Task[] への変換
-  const tasksForTaskList = useMemo(() => {
-    return tasks.map((internalTask: InternalTask): Task => {
-      const commentsForTask: ProjectComment[] | undefined = internalTask.comments?.map(comment => ({
-        ...comment,
-        createdAt: comment.createdAt.toISOString(),
-        updatedAt: comment.updatedAt?.toISOString(), 
-      }));
-
-      return {
-        ...internalTask,
-        createdAt: internalTask.createdAt.toISOString(),
-        updatedAt: internalTask.updatedAt.toISOString(),
-        dueDate: internalTask.dueDate?.toISOString(),
-        comments: commentsForTask, 
-      };
-    });
-  }, [tasks]);
 
   return (
     <ContentLayout header={<Header variant="h1">資料リスト</Header>}>
