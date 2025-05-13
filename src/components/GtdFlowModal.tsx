@@ -34,7 +34,8 @@ const GtdFlowModal: React.FC<GtdFlowModalProps> = ({ isOpen, onClose, memoId }) 
     setTaskToWaitingOn, 
     convertTaskToProject, 
     trashTask,
-    addTask // 新規タスク作成関数を追加
+    addTask, // 新規タスク作成関数を追加
+    changeTaskStatus // タスクのステータス変更関数を追加
   } = useTasks();
 
   // GTDフローのステップ管理
@@ -45,6 +46,7 @@ const GtdFlowModal: React.FC<GtdFlowModalProps> = ({ isOpen, onClose, memoId }) 
   const [nonActionableOutcome, setNonActionableOutcome] = useState<'trash' | 'someday' | 'reference' | ''>('');
   const [numActions, setNumActions] = useState<'single' | 'multiple' | ''>('');
   const [isTwoMinuteTask, setIsTwoMinuteTask] = useState<'yes' | 'no' | ''>('');
+  const [isTaskCompleted, setIsTaskCompleted] = useState<'yes' | 'no' | ''>(''); // 2分タスク完了確認
   const [delegationChoice, setDelegationChoice] = useState<'do_it' | 'delegate_it' | ''>('');
   const [delegateTo, setDelegateTo] = useState(''); // 委任先の情報
   const [hasSpecificDate, setHasSpecificDate] = useState<'yes' | 'no' | ''>('');
@@ -74,6 +76,7 @@ const GtdFlowModal: React.FC<GtdFlowModalProps> = ({ isOpen, onClose, memoId }) 
       setNonActionableOutcome('');
       setNumActions('');
       setIsTwoMinuteTask('');
+      setIsTaskCompleted(''); // 2分タスク完了確認をリセット
       setDelegationChoice('');
       setDelegateTo('');
       setHasSpecificDate('');
@@ -347,10 +350,66 @@ const GtdFlowModal: React.FC<GtdFlowModalProps> = ({ isOpen, onClose, memoId }) 
         
         // 選択に応じて分岐
         if (isTwoMinuteTask === 'yes') {
-          // 「はい」なら2分ルールを適用し、フロー完了
+          // 「はい」なら2分ルールを適用し、タスク完了確認ステップへ
+          setCurrentStep(4.1); // 新しいステップ4.1（タスク完了確認）へ進む
+        } else {
+          // 「いいえ」なら次のステップへ
+          setCurrentStep(5);
+        }
+        break;
+        
+      case 4.1: // ステップ4.1: タスク完了確認
+        if (!isTaskCompleted) {
+          setCompletionMessage('「タスクを完了しましたか？」を選択してください。');
+          setCompletionStatus('error');
+          return;
+        }
+        
+        // タスク完了確認の選択に応じて処理
+        if (isTaskCompleted === 'yes') {
+          // 「はい」ならタスクを完了状態に変更
+          setIsProcessing(true);
+          
+          if (currentTask) {
+            // 既存タスクの場合はステータスを更新して完了に
+            changeTaskStatus(currentTask.id, 'done')
+              .then(() => {
+                setCompletionMessage('タスクを完了しました！');
+                setCompletionStatus('success');
+                setIsProcessing(false);
+              })
+              .catch((error: Error) => {
+                console.error('タスク完了エラー:', error);
+                setCompletionMessage('タスクの完了処理中にエラーが発生しました。');
+                setCompletionStatus('error');
+                setIsProcessing(false);
+              });
+          } else {
+            // 新規タスクを作成して完了状態に
+            addTask({
+              title: itemName,
+              description: `${itemDescription || ''}\n\n【GTDフローメモ】: 2分ルール適用、即時完了したタスク`,
+              status: 'done',
+              priority: 'high',
+            })
+              .then(() => {
+                setCompletionMessage('タスクを作成し、完了しました！');
+                setCompletionStatus('success');
+                setIsProcessing(false);
+              })
+              .catch((err: Error) => {
+                console.error('タスク作成エラー:', err);
+                setCompletionMessage('タスクの作成中にエラーが発生しました。');
+                setCompletionStatus('error');
+                setIsProcessing(false);
+              });
+          }
+        } else {
+          // 「いいえ」ならTodoリストに追加
+          setIsProcessing(true);
+          
           if (currentTask) {
             // 既存タスクの場合はステータスを更新
-            setIsProcessing(true);
             updateTask(currentTask.id, {
               status: 'todo',
               description: `${currentTask.description || ''}\n\n【GTDフローメモ】: 2分ルール適用、今すぐ実行するタスク`
@@ -358,7 +417,7 @@ const GtdFlowModal: React.FC<GtdFlowModalProps> = ({ isOpen, onClose, memoId }) 
               setCompletionMessage('2分ルール適用！今すぐ実行しましょう。タスクをTodoリストに移動しました。');
               setCompletionStatus('success');
               setIsProcessing(false);
-            }).catch(error => {
+            }).catch((error: Error) => {
               console.error('タスク更新エラー:', error);
               setCompletionMessage('タスクの更新中にエラーが発生しました。');
               setCompletionStatus('error');
@@ -366,12 +425,9 @@ const GtdFlowModal: React.FC<GtdFlowModalProps> = ({ isOpen, onClose, memoId }) 
             });
           } else {
             // 新規タスクを作成して2分ルールを適用
-            setIsProcessing(true);
             addTask({
               title: itemName,
-              description: `${itemDescription || ''}
-
-【GTDフローメモ】: 2分ルール適用、今すぐ実行するタスク`,
+              description: `${itemDescription || ''}\n\n【GTDフローメモ】: 2分ルール適用、今すぐ実行するタスク`,
               status: 'todo',
               priority: 'high', // 2分ルールタスクは優先度高めをデフォルトに
             })
@@ -387,9 +443,6 @@ const GtdFlowModal: React.FC<GtdFlowModalProps> = ({ isOpen, onClose, memoId }) 
                 setIsProcessing(false);
               });
           }
-        } else {
-          // 「いいえ」なら次のステップへ
-          setCurrentStep(5);
         }
         break;
 
@@ -577,6 +630,10 @@ const GtdFlowModal: React.FC<GtdFlowModalProps> = ({ isOpen, onClose, memoId }) 
       case 4: // ステップ4からはステップ3に戻る
         setCurrentStep(3);
         break;
+      case 4.1: // ステップ4.1からはステップ4に戻る
+        setCurrentStep(4);
+        setIsTaskCompleted(''); // 選択をリセット
+        break;
       case 5: // ステップ5からはステップ4に戻る
         setCurrentStep(4);
         break;
@@ -646,16 +703,58 @@ const GtdFlowModal: React.FC<GtdFlowModalProps> = ({ isOpen, onClose, memoId }) 
         );
       case 4:
         return (
-          <FormField label="そのアクションは2分以内でできますか？" description="2分で終わるタスクはすぐに実行しましょう。">
-            <RadioGroup
-              onChange={({ detail }) => setIsTwoMinuteTask(detail.value as 'yes' | 'no')}
-              value={isTwoMinuteTask}
-              items={[
-                { value: 'yes', label: 'はい、2分以内で完了します' },
-                { value: 'no', label: 'いいえ、2分以上かかります' },
-              ]}
-            />
-          </FormField>
+          <SpaceBetween direction="vertical" size="l">
+            <FormField
+              label="そのアクションは2分以内でできますか？"
+              description="2分で終わるタスクはすぐに実行しましょう。"
+            >
+              <RadioGroup
+                onChange={({ detail }) => setIsTwoMinuteTask(detail.value as 'yes' | 'no')}
+                value={isTwoMinuteTask}
+                items={[
+                  { value: 'yes', label: 'はい、2分以内でできます' },
+                  { value: 'no', label: 'いいえ、もっと時間がかかります' },
+                ]}
+              />
+            </FormField>
+            
+            {isTwoMinuteTask === 'yes' && (
+              <Alert type="success">
+                <b>2分ルール適用！</b><br />
+                このタスクは2分以内で完了できるため、今すぐ実行しましょう。<br />
+                次のステップで完了確認を行います。
+              </Alert>
+            )}
+          </SpaceBetween>
+        );
+      case 4.1:
+        return (
+          <SpaceBetween direction="vertical" size="l">
+            <FormField label="タスクを完了しましたか？" description="2分以内のタスクをすぐに実行し、完了したかどうかを選択してください。">
+              <RadioGroup
+                onChange={({ detail }) => setIsTaskCompleted(detail.value as 'yes' | 'no')}
+                value={isTaskCompleted}
+                items={[
+                  { value: 'yes', label: 'はい、タスクを完了しました' },
+                  { value: 'no', label: 'いいえ、後で実行します' },
+                ]}
+              />
+            </FormField>
+            
+            {isTaskCompleted === 'yes' && (
+              <Alert type="success">
+                <b>タスク完了！</b><br />
+                タスクを完了状態にします。お疲れ様でした！
+              </Alert>
+            )}
+            
+            {isTaskCompleted === 'no' && (
+              <Alert type="info">
+                <b>Todoリストに追加</b><br />
+                タスクをTodoリストに追加します。後ほど実行してください。
+              </Alert>
+            )}
+          </SpaceBetween>
         );
       case 5:
         return (
@@ -719,6 +818,7 @@ const GtdFlowModal: React.FC<GtdFlowModalProps> = ({ isOpen, onClose, memoId }) 
       case 2.1: return "ステップ2A: 行動不要な場合の処理";
       case 3: return "ステップ3: 次のアクションの数";
       case 4: return "ステップ4: 2分ルール";
+      case 4.1: return "ステップ4.1: タスク完了確認";
       case 5: return "ステップ5: タスクの委任";
       case 6: return "ステップ6: 日時の特定";
       default: return "GTDフロー";
@@ -735,6 +835,7 @@ const GtdFlowModal: React.FC<GtdFlowModalProps> = ({ isOpen, onClose, memoId }) 
       case 2.1: return !nonActionableOutcome;
       case 3: return !numActions;
       case 4: return !isTwoMinuteTask;
+      case 4.1: return !isTaskCompleted;
       case 5: return !delegationChoice;
       case 6: return !hasSpecificDate || (hasSpecificDate === 'yes' && !dueDate);
       default: return true;
@@ -746,7 +847,7 @@ const GtdFlowModal: React.FC<GtdFlowModalProps> = ({ isOpen, onClose, memoId }) 
     if (currentStep === 6 || 
         (currentStep === 2.1 && nonActionableOutcome) ||
         (currentStep === 3 && numActions === 'multiple') ||
-        (currentStep === 4 && isTwoMinuteTask === 'yes') ||
+        (currentStep === 4.1 && isTaskCompleted) ||
         (currentStep === 5 && delegationChoice === 'delegate_it')
        ) return "完了";
     return "次へ";
