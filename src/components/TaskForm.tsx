@@ -177,7 +177,9 @@ const statusLabels: Record<Task['status'], string> = {
   'in-progress': '進行中',
   'done': '完了',
   'inbox': '受信箱',
-  'wait-on': '待機中'
+  'wait-on': '待機中',
+  'someday-maybe': 'いつかやるリスト',
+  'reference': '参照資料'
 };
 
 const priorityLabels: Record<Task['priority'], string> = {

@@ -199,6 +199,8 @@ const TaskList: React.FC<TaskListProps> = ({
                   { id: 'todo', text: '未着手' },
                   { id: 'in-progress', text: '進行中' },
                   { id: 'wait-on', text: '待機中' },
+                  { id: 'someday-maybe', text: 'いつかやるリスト' },
+                  { id: 'reference', text: '参照資料' },
                   { id: 'done', text: '完了' }
                 ]}
               />

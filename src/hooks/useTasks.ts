@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { Task, TaskStatus, TaskPriority, TaskCommentModel } from '../models/Task';
+import { Task, TaskStatus, TaskPriority, TaskCommentModel, TaskHistoryEntry } from '../models/Task';
 import { v4 as uuidv4 } from 'uuid';
 
 // ローカルストレージのキー
@@ -24,6 +24,7 @@ export interface InternalTask extends Omit<Task, 'dueDate' | 'createdAt' | 'upda
   createdAt: Date;
   updatedAt: Date;
   comments?: InternalTaskComment[];
+  delegatedTo?: string; // 委任先の情報を追加
 }
 
 export interface InternalTaskComment extends Omit<TaskCommentModel, 'createdAt' | 'updatedAt'> {
@@ -262,6 +263,140 @@ export const useTasks = () => {
     return Promise.resolve(updatedTaskInstance);
   }, [tasks]);
 
+  // --- GTD Flow Related Functions ---
+  
+  // メモを「いつかやるリスト」に移動
+  const moveTaskToSomedayMaybe = useCallback((taskId: string, notes?: string) => {
+    setTasks(prevTasks => {
+      return prevTasks.map(task => {
+        if (task.id === taskId) {
+          // 履歴エントリを作成
+          const historyEntry: TaskHistoryEntry = {
+            timestamp: new Date().toISOString(),
+            change: `タスクが「いつかやるリスト」に移動されました`
+          };
+          
+          // 説明に追加のメモがあれば追加
+          const updatedDescription = notes 
+            ? `${task.description || ''}\n\n【GTDフロー追加メモ】: ${notes}` 
+            : task.description;
+          
+          return {
+            ...task,
+            status: 'someday-maybe' as TaskStatus,
+            description: updatedDescription,
+            updatedAt: new Date(),
+            history: [...(task.history || []), historyEntry]
+          };
+        }
+        return task;
+      });
+    });
+  }, []);
+  
+  // メモを「参照資料」に分類
+  const moveTaskToReference = useCallback((taskId: string, notes?: string) => {
+    setTasks(prevTasks => {
+      return prevTasks.map(task => {
+        if (task.id === taskId) {
+          // 履歴エントリを作成
+          const historyEntry: TaskHistoryEntry = {
+            timestamp: new Date().toISOString(),
+            change: `タスクが「参照資料」に分類されました`
+          };
+          
+          // 説明に追加のメモがあれば追加
+          const updatedDescription = notes 
+            ? `${task.description || ''}\n\n【GTDフロー追加メモ】: ${notes}` 
+            : task.description;
+          
+          return {
+            ...task,
+            status: 'reference' as TaskStatus,
+            description: updatedDescription,
+            updatedAt: new Date(),
+            history: [...(task.history || []), historyEntry]
+          };
+        }
+        return task;
+      });
+    });
+  }, []);
+  
+  // メモを「連絡待ち」に設定
+  const setTaskToWaitingOn = useCallback((taskId: string, delegatedTo?: string, notes?: string) => {
+    setTasks(prevTasks => {
+      return prevTasks.map(task => {
+        if (task.id === taskId) {
+          // 履歴エントリを作成
+          const historyEntry: TaskHistoryEntry = {
+            timestamp: new Date().toISOString(),
+            change: delegatedTo 
+              ? `タスクが「${delegatedTo}」に委任され、連絡待ちになりました` 
+              : `タスクが「連絡待ち」に設定されました`
+          };
+          
+          // 説明に委任先と追加のメモを追加
+          let updatedDescription = task.description || '';
+          
+          if (delegatedTo) {
+            updatedDescription += `\n\n【委任先】: ${delegatedTo}`;
+          }
+          
+          if (notes) {
+            updatedDescription += `\n\n【GTDフロー追加メモ】: ${notes}`;
+          }
+          
+          return {
+            ...task,
+            status: 'wait-on',
+            description: updatedDescription,
+            updatedAt: new Date(),
+            delegatedTo: delegatedTo || task.delegatedTo, // delegatedToプロパティが存在する場合は更新
+            history: [...(task.history || []), historyEntry]
+          };
+        }
+        return task;
+      });
+    });
+  }, []);
+  
+  // タスクをプロジェクト化（複数アクションが必要な場合）
+  const convertTaskToProject = useCallback((taskId: string, notes?: string) => {
+    setTasks(prevTasks => {
+      return prevTasks.map(task => {
+        if (task.id === taskId) {
+          // 履歴エントリを作成
+          const historyEntry: TaskHistoryEntry = {
+            timestamp: new Date().toISOString(),
+            change: `タスクがプロジェクトに変換されました`
+          };
+          
+          // 説明に追加のメモがあれば追加
+          const updatedDescription = notes 
+            ? `${task.description || ''}\n\n【GTDフロー追加メモ】: ${notes}` 
+            : task.description;
+          
+          return {
+            ...task,
+            isProject: true, // プロジェクトフラグを設定
+            description: updatedDescription,
+            updatedAt: new Date(),
+            history: [...(task.history || []), historyEntry]
+          };
+        }
+        return task;
+      });
+    });
+  }, []);
+  
+  // タスクを削除（ゴミ箱へ）
+  const trashTask = useCallback((taskId: string) => {
+    setTasks(prevTasks => {
+      return prevTasks.filter(task => task.id !== taskId);
+    });
+  }, []);
+  
   // --- Utility functions for data conversion ---
   const toInternalTask = (task: Task): InternalTask => {
     const { comments, dueDate, createdAt, updatedAt, ...restOfTask } = task;
@@ -378,5 +513,11 @@ export const useTasks = () => {
     addCommentToTask,
     updateTaskComment,
     deleteTaskComment,
+    // GTDフロー関連の関数を追加
+    moveTaskToSomedayMaybe,
+    moveTaskToReference,
+    setTaskToWaitingOn,
+    convertTaskToProject,
+    trashTask,
   };
 };
