@@ -7,7 +7,8 @@ import {
   SpaceBetween,
   StatusIndicator,
   Badge,
-  Icon
+  Icon,
+  ColumnLayout
 } from '@cloudscape-design/components';
 import { Task } from '../models/Task';
 
@@ -60,7 +61,7 @@ const TaskCard: React.FC<TaskCardProps> = ({
     }
   };
 
-  const formatDate = (date: Date | undefined) => {
+  const formatDate = (date: Date | string | undefined) => {
     if (!date) return '未設定';
     return new Date(date).toLocaleDateString('ja-JP', {
       year: 'numeric',
@@ -95,84 +96,179 @@ const TaskCard: React.FC<TaskCardProps> = ({
       onOpenGtdFlow(task.id);
     }
   };
-
-  // inboxステータスのタスクの場合、カードにホバー効果を追加するためのスタイル
-  const divStyle = task.status === 'inbox' ? {
-    cursor: 'pointer',
-    transition: 'all 0.2s ease',
-    ':hover': {
-      backgroundColor: '#f0f0f0',
-      boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)'
+  
+  // GTD関連の属性を表示するメソッド
+  const getEnergyLevelBadge = (energy?: Task['energy']) => {
+    if (!energy) return null;
+    
+    const colors: Record<string, "blue" | "green" | "red"> = {
+      'low': 'blue',
+      'medium': 'green',
+      'high': 'red'
+    };
+    
+    const labels: Record<string, string> = {
+      'low': 'エネルギー: 低',
+      'medium': 'エネルギー: 中',
+      'high': 'エネルギー: 高'
+    };
+    
+    return <Badge color={colors[energy]}>{labels[energy]}</Badge>;
+  };
+  
+  const getTimeEstimateBadge = (time?: Task['time']) => {
+    if (!time) return null;
+    
+    const colors: Record<string, "blue" | "green" | "red"> = {
+      'quick': 'blue',
+      'medium': 'green',
+      'long': 'red'
+    };
+    
+    const labels: Record<string, string> = {
+      'quick': '時間: 短',
+      'medium': '時間: 中',
+      'long': '時間: 長'
+    };
+    
+    return <Badge color={colors[time]}>{labels[time]}</Badge>;
+  };
+  
+  const getContextTags = (contextTag?: string[]) => {
+    if (!contextTag || contextTag.length === 0) return null;
+    
+    return (
+      <Box>
+        <SpaceBetween direction="horizontal" size="xxs">
+          {contextTag.map((tag, index) => (
+            <Badge key={index} color="blue">コンテキスト: {tag}</Badge>
+          ))}
+        </SpaceBetween>
+      </Box>
+    );
+  };
+  
+  const getProjectBadge = (isProject?: boolean) => {
+    if (!isProject) return null;
+    
+    return <Badge color="green">プロジェクト</Badge>;
+  };
+  
+  const getNextActionBadge = (nextAction?: boolean) => {
+    if (!nextAction) return null;
+    
+    return <Badge color="red">次のアクション</Badge>;
+  };
+  
+  const getDelegatedInfo = (delegatedTo?: string) => {
+    if (!delegatedTo) return null;
+    
+    return <Box>委任先: {delegatedTo}</Box>;
+  };
+  
+  const getWaitingForInfo = (waitingFor?: string) => {
+    if (!waitingFor) return null;
+    
+    return <Box>待機理由: {waitingFor}</Box>;
+  };
+  
+  const getCategoryInfo = (category?: string, subcategory?: string) => {
+    if (!category && !subcategory) return null;
+    
+    if (category && subcategory) {
+      return <Box>カテゴリ: {category}/{subcategory}</Box>;
+    } else if (category) {
+      return <Box>カテゴリ: {category}</Box>;
+    } else if (subcategory) {
+      return <Box>サブカテゴリ: {subcategory}</Box>;
     }
-  } : {};
+    
+    return null;
+  };
 
   return (
     <div 
       onClick={task.status === 'inbox' ? handleCardClick : undefined}
       style={task.status === 'inbox' ? {cursor: 'pointer'} : undefined}
     >
-    <Container
-      header={
-        <Header
-          actions={
-            <SpaceBetween direction="horizontal" size="xs">
-              {task.status === 'inbox' ? (
-                <Button onClick={(e) => {
-                  e.stopPropagation(); // カード全体のクリックイベントが発火しないようにする
-                  onOpenGtdFlow(task.id);
-                }} variant="primary" iconName="external">GTD処理</Button>
-              ) : (
-                <Button onClick={(e) => {
-                  e.stopPropagation(); // カード全体のクリックイベントが発火しないようにする
-                  onOpenGtdFlow(task.id);
-                }} variant="normal" iconName="external">GTD</Button>
-              )}
-              <Button onClick={(e) => {
-                e.stopPropagation(); // カード全体のクリックイベントが発火しないようにする
-                onEdit(task);
-              }} variant="icon" iconName="edit" />
-              <Button onClick={(e) => {
-                e.stopPropagation(); // カード全体のクリックイベントが発火しないようにする
-                onDelete(task.id);
-              }} variant="icon" iconName="remove" />
+      <Container
+        header={
+          <Header
+            variant="h3"
+            actions={
+              <SpaceBetween direction="horizontal" size="xs">
+                <Button
+                  iconName="edit"
+                  variant="icon"
+                  onClick={e => {
+                    e.stopPropagation();
+                    onEdit(task);
+                  }}
+                />
+                <Button
+                  iconName="status-positive"
+                  variant="icon"
+                  onClick={e => {
+                    e.stopPropagation();
+                    handleStatusChange();
+                  }}
+                />
+                <Button
+                  iconName="remove"
+                  variant="icon"
+                  onClick={e => {
+                    e.stopPropagation();
+                    onDelete(task.id);
+                  }}
+                />
+              </SpaceBetween>
+            }
+          >
+            {task.title}
+          </Header>
+        }
+      >
+        <SpaceBetween size="s">
+          <Box>{task.description}</Box>
+
+          <SpaceBetween direction="horizontal" size="xs">
+            {getStatusIndicator(task.status)}
+            {getPriorityBadge(task.priority)}
+            {task.dueDate && (
+              <Box>
+                <Icon name="calendar" /> {formatDate(task.dueDate)}
+              </Box>
+            )}
+          </SpaceBetween>
+
+          {/* GTD関連の属性を表示 */}
+          <ColumnLayout columns={2} variant="text-grid">
+            <SpaceBetween size="xs">
+              {/* 左側のカラム */}
+              {getDelegatedInfo(task.delegatedTo)}
+              {getWaitingForInfo(task.waitingFor)}
+              {getCategoryInfo(task.category, task.subcategory)}
             </SpaceBetween>
-          }
-        >
-          {task.title}
-        </Header>
-      }
-    >
-      <SpaceBetween direction="vertical" size="m">
-        <Box>{task.description}</Box>
-        
-        <SpaceBetween direction="horizontal" size="xs">
-          {getStatusIndicator(task.status)}
-          {getPriorityBadge(task.priority)}
+            
+            <SpaceBetween size="xs">
+              {/* 右側のカラム - バッジ表示 */}
+              <SpaceBetween direction="horizontal" size="xxs">
+                {getProjectBadge(task.isProject)}
+                {getNextActionBadge(task.nextAction)}
+                {getEnergyLevelBadge(task.energy)}
+                {getTimeEstimateBadge(task.time)}
+              </SpaceBetween>
+              {getContextTags(task.contextTag)}
+            </SpaceBetween>
+          </ColumnLayout>
+          
+          {task.status === 'inbox' && (
+            <Box color="text-status-info" fontWeight="bold">
+              クリックしてGTD処理を開始
+            </Box>
+          )}
         </SpaceBetween>
-        
-        <SpaceBetween direction="horizontal" size="xs">
-          <Box>期限: {formatDate(task.dueDate ? new Date(task.dueDate) : undefined)}</Box>
-          <Box>作成: {formatDate(new Date(task.createdAt))}</Box>
-        </SpaceBetween>
-        
-        {task.status !== 'inbox' && (
-          <Button onClick={(e) => {
-            e.stopPropagation(); // カード全体のクリックイベントが発火しないようにする
-            handleStatusChange();
-          }}>
-            {task.status === 'todo' ? '進行中にする' : 
-             task.status === 'in-progress' ? '完了にする' : 
-             '未着手に戻す'}
-          </Button>
-        )}
-        
-        {task.status === 'inbox' && (
-          <Box color="text-status-info" fontWeight="bold">
-            クリックしてGTD処理を開始
-          </Box>
-        )}
-      </SpaceBetween>
-    </Container>
+      </Container>
     </div>
   );
 };

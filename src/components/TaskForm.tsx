@@ -8,9 +8,12 @@ import {
   Button,
   SpaceBetween,
   DatePicker,
-  SelectProps
+  SelectProps,
+  Checkbox,
+  Multiselect,
+  MultiselectProps
 } from '@cloudscape-design/components';
-import { TaskFormData, Task, TaskStatus, TaskPriority, Project } from '../models/Task';
+import { TaskFormData, Task, TaskStatus, TaskPriority, Project, EnergyLevel, TimeEstimate } from '../models/Task';
 
 interface TaskFormProps {
   onSubmit: (task: TaskFormData) => void;
@@ -34,6 +37,16 @@ const TaskForm: React.FC<TaskFormProps> = ({
     priority: initialTask?.priority || 'medium',
     dueDate: initialTask?.dueDate || undefined,
     projectId: initialTask?.projectId || undefined,
+    // GTD関連の属性を初期化
+    delegatedTo: initialTask?.delegatedTo || undefined,
+    waitingFor: initialTask?.waitingFor || undefined,
+    contextTag: initialTask?.contextTag || undefined,
+    isProject: initialTask?.isProject || false,
+    nextAction: initialTask?.nextAction || false,
+    energy: initialTask?.energy || undefined,
+    time: initialTask?.time || undefined,
+    category: initialTask?.category || undefined,
+    subcategory: initialTask?.subcategory || undefined,
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -46,6 +59,16 @@ const TaskForm: React.FC<TaskFormProps> = ({
       priority: initialTask?.priority || 'medium',
       dueDate: initialTask?.dueDate || undefined,
       projectId: initialTask?.projectId || undefined,
+      // GTD関連の属性を初期化
+      delegatedTo: initialTask?.delegatedTo || undefined,
+      waitingFor: initialTask?.waitingFor || undefined,
+      contextTag: initialTask?.contextTag || undefined,
+      isProject: initialTask?.isProject || false,
+      nextAction: initialTask?.nextAction || false,
+      energy: initialTask?.energy || undefined,
+      time: initialTask?.time || undefined,
+      category: initialTask?.category || undefined,
+      subcategory: initialTask?.subcategory || undefined,
     });
   }, [initialTask]);
 
@@ -93,6 +116,12 @@ const TaskForm: React.FC<TaskFormProps> = ({
   ];
 
   const selectedProjectOption = projectOptions.find(opt => opt.value === formData.projectId) || projectOptions[0];
+
+  // コンテキストタグの選択肢を生成
+  const selectedContextOptions = formData.contextTag?.map(tag => ({
+    label: tag,
+    value: tag
+  })) || [];
 
   return (
     <Form
@@ -167,6 +196,117 @@ const TaskForm: React.FC<TaskFormProps> = ({
             placeholder="YYYY/MM/DD"
           />
         </FormField>
+
+        {/* GTD関連のフィールド */}
+        <FormField
+          label="プロジェクトフラグ"
+          description="このタスクが複数のアクションを含むプロジェクトかどうか"
+        >
+          <Checkbox
+            checked={formData.isProject || false}
+            onChange={e => handleChange('isProject', e.detail.checked)}
+          >
+            プロジェクトとして扱う
+          </Checkbox>
+        </FormField>
+
+        <FormField
+          label="次のアクション"
+          description="このタスクが次に実行すべきアクションかどうか"
+        >
+          <Checkbox
+            checked={formData.nextAction || false}
+            onChange={e => handleChange('nextAction', e.detail.checked)}
+          >
+            次のアクションとして扱う
+          </Checkbox>
+        </FormField>
+
+        {formData.status === 'wait-on' && (
+          <FormField
+            label="待機理由"
+            description="誰からの返信を待っているか、何を待っているか"
+          >
+            <Input
+              value={formData.waitingFor || ''}
+              onChange={e => handleChange('waitingFor', e.detail.value)}
+              placeholder="例: 田中さんからの返信"
+            />
+          </FormField>
+        )}
+
+        {formData.status === 'wait-on' && (
+          <FormField
+            label="委任先"
+            description="タスクを委任した相手"
+          >
+            <Input
+              value={formData.delegatedTo || ''}
+              onChange={e => handleChange('delegatedTo', e.detail.value)}
+              placeholder="例: 鈴木さん"
+            />
+          </FormField>
+        )}
+
+        <FormField
+          label="コンテキストタグ"
+          description="タスクを実行する場所や状況"
+        >
+          <Multiselect
+            selectedOptions={selectedContextOptions}
+            onChange={e => handleChange('contextTag', e.detail.selectedOptions.map(opt => opt.value as string))}
+            options={contextOptions}
+            placeholder="コンテキストを選択"
+          />
+        </FormField>
+
+        <FormField
+          label="必要なエネルギーレベル"
+          description="このタスクを実行するのに必要なエネルギーレベル"
+        >
+          <Select
+            selectedOption={formData.energy ? { value: formData.energy, label: energyLevelLabels[formData.energy] } : null}
+            onChange={e => handleChange('energy', e.detail.selectedOption?.value as EnergyLevel | undefined)}
+            options={Object.entries(energyLevelLabels).map(([value, label]) => ({ value: value as EnergyLevel, label }))}
+            placeholder="エネルギーレベルを選択"
+            empty="選択肢がありません"
+          />
+        </FormField>
+
+        <FormField
+          label="所要時間の目安"
+          description="このタスクを実行するのに必要な時間の目安"
+        >
+          <Select
+            selectedOption={formData.time ? { value: formData.time, label: timeEstimateLabels[formData.time] } : null}
+            onChange={e => handleChange('time', e.detail.selectedOption?.value as TimeEstimate | undefined)}
+            options={Object.entries(timeEstimateLabels).map(([value, label]) => ({ value: value as TimeEstimate, label }))}
+            placeholder="所要時間を選択"
+            empty="選択肢がありません"
+          />
+        </FormField>
+
+        <FormField
+          label="カテゴリ"
+          description="タスクのカテゴリ（例: 仕事、個人、家庭など）"
+        >
+          <Input
+            value={formData.category || ''}
+            onChange={e => handleChange('category', e.detail.value)}
+            placeholder="例: 仕事"
+          />
+        </FormField>
+
+        <FormField
+          label="サブカテゴリ"
+          description="カテゴリの中のサブカテゴリ（例: 仕事/会議、個人/趣味など）"
+        >
+          <Input
+            value={formData.subcategory || ''}
+            onChange={e => handleChange('subcategory', e.detail.value)}
+            placeholder="例: 会議"
+          />
+        </FormField>
       </SpaceBetween>
     </Form>
   );
@@ -187,5 +327,30 @@ const priorityLabels: Record<Task['priority'], string> = {
   'medium': '中',
   'high': '高'
 };
+
+const energyLevelLabels: Record<EnergyLevel, string> = {
+  'low': '低',
+  'medium': '中',
+  'high': '高'
+};
+
+const timeEstimateLabels: Record<TimeEstimate, string> = {
+  'quick': '短時間（〜15分）',
+  'medium': '中程度（〜1時間）',
+  'long': '長時間（1時間〜）'
+};
+
+// コンテキストタグの選択肢
+const contextOptions: MultiselectProps.Option[] = [
+  { label: '自宅', value: '自宅' },
+  { label: 'オフィス', value: 'オフィス' },
+  { label: '外出先', value: '外出先' },
+  { label: 'PC', value: 'PC' },
+  { label: 'スマホ', value: 'スマホ' },
+  { label: '電話', value: '電話' },
+  { label: 'メール', value: 'メール' },
+  { label: '会議', value: '会議' },
+  { label: '買い物', value: '買い物' },
+];
 
 export default TaskForm;
