@@ -3,6 +3,8 @@ import { Comment as TaskCommentModel } from './Comment'; // エイリアスを T
 export type { TaskCommentModel }; // TaskCommentModel をエクスポート
 
 export type TaskStatus = 'todo' | 'in-progress' | 'done' | 'inbox' | 'wait-on' | 'someday-maybe' | 'reference';
+export type EnergyLevel = 'low' | 'medium' | 'high';
+export type TimeEstimate = 'quick' | 'medium' | 'long';
 export type TaskPriority = 'low' | 'medium' | 'high';
 
 export interface Project {
@@ -58,6 +60,44 @@ export interface Task {
    * Optional: Array of changes made to the task.
    */
   history?: TaskHistoryEntry[];
+  
+  // GTDメソッドに基づく拡張属性
+  /**
+   * Optional: Name or email of the person this task is delegated to.
+   */
+  delegatedTo?: string;
+  /**
+   * Optional: Reason or person you're waiting for (for wait-on tasks).
+   */
+  waitingFor?: string;
+  /**
+   * Optional: Context tags for the task (location, tool, situation, etc.).
+   */
+  contextTag?: string[];
+  /**
+   * Optional: Flag indicating if this task is actually a project (contains multiple actions).
+   */
+  isProject?: boolean;
+  /**
+   * Optional: Flag indicating if this is the next action that should be done.
+   */
+  nextAction?: boolean;
+  /**
+   * Optional: Energy level required to complete this task.
+   */
+  energy?: EnergyLevel;
+  /**
+   * Optional: Estimated time required to complete this task.
+   */
+  time?: TimeEstimate;
+  /**
+   * Optional: Task category (e.g., work, personal, etc.).
+   */
+  category?: string;
+  /**
+   * Optional: Task subcategory (e.g., work: meeting, personal: shopping, etc.).
+   */
+  subcategory?: string;
 }
 
 export type TaskFormData = Omit<Task, 'id' | 'createdAt' | 'updatedAt' | 'comments' | 'history' | 'projectName'>;

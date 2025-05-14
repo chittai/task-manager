@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { Task, TaskStatus, TaskPriority, TaskCommentModel, TaskHistoryEntry } from '../models/Task';
+import { Task, TaskStatus, TaskPriority, TaskCommentModel, TaskHistoryEntry, EnergyLevel, TimeEstimate } from '../models/Task';
 import { v4 as uuidv4 } from 'uuid';
 
 // ローカルストレージのキー
@@ -15,6 +15,16 @@ export interface TaskFormData {
   projectId?: string;
   assigneeId?: string;
   context?: string[];
+  // GTDメソッドに基づく拡張属性
+  delegatedTo?: string;
+  waitingFor?: string;
+  contextTag?: string[];
+  isProject?: boolean;
+  nextAction?: boolean;
+  energy?: EnergyLevel;
+  time?: TimeEstimate;
+  category?: string;
+  subcategory?: string;
   // commentsはここでは直接編集しない想定
 }
 
@@ -24,8 +34,16 @@ export interface InternalTask extends Omit<Task, 'dueDate' | 'createdAt' | 'upda
   createdAt: Date;
   updatedAt: Date;
   comments?: InternalTaskComment[];
-  delegatedTo?: string; // 委任先の情報を追加
+  // GTDメソッドに基づく拡張属性
+  delegatedTo?: string; // 委任先の情報
+  waitingFor?: string; // 待機理由/人
+  contextTag?: string[]; // コンテキストタグ
   isProject?: boolean; // プロジェクトフラグ
+  nextAction?: boolean; // 次のアクションフラグ
+  energy?: EnergyLevel; // 必要なエネルギーレベル
+  time?: TimeEstimate; // 所要時間の目安
+  category?: string; // タスクカテゴリ
+  subcategory?: string; // タスクサブカテゴリ
 }
 
 export interface InternalTaskComment extends Omit<TaskCommentModel, 'createdAt' | 'updatedAt'> {
@@ -47,6 +65,16 @@ export interface FilterCriteria {
   projectId?: string;
   priority?: TaskPriority;
   searchTerm?: string;
+  // GTD関連のフィルタリング条件
+  delegatedTo?: string;
+  waitingFor?: string;
+  contextTag?: string;
+  nextAction?: boolean;
+  energy?: EnergyLevel;
+  time?: TimeEstimate;
+  isProject?: boolean;
+  category?: string;
+  subcategory?: string;
 }
 
 // --- Hook Implementation ---
@@ -117,6 +145,16 @@ export const useTasks = () => {
       dueDate: taskData.dueDate ? new Date(taskData.dueDate) : undefined,
       createdAt: now,
       updatedAt: now,
+      // GTD関連の属性を追加
+      delegatedTo: taskData.delegatedTo,
+      waitingFor: taskData.waitingFor,
+      contextTag: taskData.contextTag,
+      isProject: taskData.isProject,
+      nextAction: taskData.nextAction,
+      energy: taskData.energy,
+      time: taskData.time,
+      category: taskData.category,
+      subcategory: taskData.subcategory,
       projectId: taskData.projectId,
       comments: [], 
     };
@@ -139,6 +177,36 @@ export const useTasks = () => {
           if (taskData.hasOwnProperty('dueDate')) {
             updatedInternalTask.dueDate = dueDate ? new Date(dueDate) : undefined;
           }
+          
+          // GTD関連の属性を明示的に更新
+          if (taskData.hasOwnProperty('delegatedTo')) {
+            updatedInternalTask.delegatedTo = taskData.delegatedTo;
+          }
+          if (taskData.hasOwnProperty('waitingFor')) {
+            updatedInternalTask.waitingFor = taskData.waitingFor;
+          }
+          if (taskData.hasOwnProperty('contextTag')) {
+            updatedInternalTask.contextTag = taskData.contextTag;
+          }
+          if (taskData.hasOwnProperty('isProject')) {
+            updatedInternalTask.isProject = taskData.isProject;
+          }
+          if (taskData.hasOwnProperty('nextAction')) {
+            updatedInternalTask.nextAction = taskData.nextAction;
+          }
+          if (taskData.hasOwnProperty('energy')) {
+            updatedInternalTask.energy = taskData.energy;
+          }
+          if (taskData.hasOwnProperty('time')) {
+            updatedInternalTask.time = taskData.time;
+          }
+          if (taskData.hasOwnProperty('category')) {
+            updatedInternalTask.category = taskData.category;
+          }
+          if (taskData.hasOwnProperty('subcategory')) {
+            updatedInternalTask.subcategory = taskData.subcategory;
+          }
+          
           updatedTaskResult = updatedInternalTask;
           return updatedInternalTask;
         }
@@ -546,6 +614,50 @@ export const useTasks = () => {
       tempTasks = tempTasks.filter(task => 
         task.title.toLowerCase().includes(searchTermLower) || 
         (task.description && task.description.toLowerCase().includes(searchTermLower))
+      );
+    }
+    
+    // GTD関連のフィルタリング
+    if (filterCriteria.delegatedTo) {
+      const delegatedToLower = filterCriteria.delegatedTo.toLowerCase();
+      tempTasks = tempTasks.filter(task => 
+        task.delegatedTo && task.delegatedTo.toLowerCase().includes(delegatedToLower)
+      );
+    }
+    if (filterCriteria.waitingFor) {
+      const waitingForLower = filterCriteria.waitingFor.toLowerCase();
+      tempTasks = tempTasks.filter(task => 
+        task.waitingFor && task.waitingFor.toLowerCase().includes(waitingForLower)
+      );
+    }
+    if (filterCriteria.contextTag) {
+      const contextTagLower = filterCriteria.contextTag.toLowerCase();
+      tempTasks = tempTasks.filter(task => 
+        task.contextTag && task.contextTag.some(tag => tag.toLowerCase().includes(contextTagLower))
+      );
+    }
+    if (filterCriteria.nextAction !== undefined) {
+      tempTasks = tempTasks.filter(task => task.nextAction === filterCriteria.nextAction);
+    }
+    if (filterCriteria.energy) {
+      tempTasks = tempTasks.filter(task => task.energy === filterCriteria.energy);
+    }
+    if (filterCriteria.time) {
+      tempTasks = tempTasks.filter(task => task.time === filterCriteria.time);
+    }
+    if (filterCriteria.isProject !== undefined) {
+      tempTasks = tempTasks.filter(task => task.isProject === filterCriteria.isProject);
+    }
+    if (filterCriteria.category) {
+      const categoryLower = filterCriteria.category.toLowerCase();
+      tempTasks = tempTasks.filter(task => 
+        task.category && task.category.toLowerCase().includes(categoryLower)
+      );
+    }
+    if (filterCriteria.subcategory) {
+      const subcategoryLower = filterCriteria.subcategory.toLowerCase();
+      tempTasks = tempTasks.filter(task => 
+        task.subcategory && task.subcategory.toLowerCase().includes(subcategoryLower)
       );
     }
 
