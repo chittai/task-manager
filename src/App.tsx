@@ -7,6 +7,7 @@ import {
   SpaceBetween,
   ContentLayout,
   SideNavigation,
+  SideNavigationProps,
 } from '@cloudscape-design/components';
 import '@cloudscape-design/global-styles/index.css';
 import { BrowserRouter, Routes, Route, useNavigate, useLocation } from 'react-router-dom';
@@ -23,15 +24,48 @@ import InboxListPage from './pages/InboxListPage';
 import WaitingOnListPage from './pages/WaitingOnListPage';
 import SomedayMaybeListPage from './pages/SomedayMaybeListPage';
 import ReferenceListPage from './pages/ReferenceListPage';
+import NextActionsPage from './pages/NextActionsPage';
+import ScheduledTasksPage from './pages/ScheduledTasksPage';
+import CompletedTasksPage from './pages/CompletedTasksPage';
+
+// カスタムナビゲーション項目の型定義
+type CustomNavigationItem = SideNavigationProps.Item & {
+  counter?: number;
+};
+
+type CustomNavigationSection = SideNavigationProps.Section & {
+  items: CustomNavigationItem[];
+};
+
+type CustomNavigationItems = (CustomNavigationItem | CustomNavigationSection)[];
 
 const NavigationWrapper: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [activeHref, setActiveHref] = useState(location.pathname);
+  const { tasks } = useTasks();
 
   useEffect(() => {
     setActiveHref(location.pathname);
   }, [location.pathname]);
+
+  // タスク数のカウント
+  const countTasksByStatus = (status: TaskStatus | TaskStatus[]): number => {
+    if (Array.isArray(status)) {
+      return tasks.filter(task => status.includes(task.status)).length;
+    }
+    return tasks.filter(task => task.status === status).length;
+  };
+
+  // 次のアクションのカウント
+  const nextActionCount = tasks.filter(task => 
+    task.status === 'todo' && task.nextAction === true
+  ).length;
+
+  // 期限付きタスクのカウント
+  const scheduledTasksCount = tasks.filter(task => 
+    task.status === 'todo' && task.dueDate !== undefined && task.dueDate !== null
+  ).length;
 
   return (
     <AppLayout
@@ -50,13 +84,88 @@ const NavigationWrapper: React.FC = () => {
             }
           }}
           items={[
-            { type: 'link', text: 'タスク一覧', href: '/' },
-            { type: 'link', text: 'インボックス', href: '/inbox' },
-            { type: 'link', text: '待機中タスク', href: '/waiting-on' },
-            { type: 'link', text: 'いつかやるリスト', href: '/someday-maybe' },
-            { type: 'link', text: '資料リスト', href: '/reference' },
-            { type: 'link', text: 'プロジェクト一覧', href: '/projects' },
-          ]}
+            // 収集フェーズ
+            {
+              type: 'section',
+              text: '収集',
+              items: [
+                { 
+                  type: 'link', 
+                  text: 'インボックス', 
+                  href: '/inbox',
+                  counter: countTasksByStatus('inbox')
+                },
+              ]
+            },
+            // 処理・整理フェーズ
+            {
+              type: 'section',
+              text: '処理・整理',
+              items: [
+                { 
+                  type: 'link', 
+                  text: 'すべてのタスク', 
+                  href: '/',
+                  counter: tasks.length
+                },
+                { 
+                  type: 'link', 
+                  text: '次のアクション', 
+                  href: '/next-actions',
+                  counter: nextActionCount
+                },
+                { 
+                  type: 'link', 
+                  text: '予定済みタスク', 
+                  href: '/scheduled',
+                  counter: scheduledTasksCount
+                },
+                { 
+                  type: 'link', 
+                  text: '待機中タスク', 
+                  href: '/waiting-on',
+                  counter: countTasksByStatus('wait-on')
+                },
+                { 
+                  type: 'link', 
+                  text: 'プロジェクト一覧', 
+                  href: '/projects'
+                },
+              ]
+            },
+            // 参照フェーズ
+            {
+              type: 'section',
+              text: '参照',
+              items: [
+                { 
+                  type: 'link', 
+                  text: '資料リスト', 
+                  href: '/reference',
+                  counter: countTasksByStatus('reference')
+                },
+                { 
+                  type: 'link', 
+                  text: 'いつかやるリスト', 
+                  href: '/someday-maybe',
+                  counter: countTasksByStatus('someday-maybe')
+                },
+              ]
+            },
+            // レビューフェーズ
+            {
+              type: 'section',
+              text: 'レビュー',
+              items: [
+                { 
+                  type: 'link', 
+                  text: '完了済みタスク', 
+                  href: '/completed',
+                  counter: countTasksByStatus('done')
+                },
+              ]
+            },
+          ] as CustomNavigationItems}
         />
       }
       content={ <AppContent /> }
@@ -200,9 +309,12 @@ const AppContent: React.FC = () => {
         </ContentLayout>
       } />
       <Route path="/inbox" element={<InboxListPage />} />
+      <Route path="/next-actions" element={<NextActionsPage />} />
+      <Route path="/scheduled" element={<ScheduledTasksPage />} />
       <Route path="/waiting-on" element={<WaitingOnListPage />} />
       <Route path="/someday-maybe" element={<SomedayMaybeListPage />} />
       <Route path="/reference" element={<ReferenceListPage />} />
+      <Route path="/completed" element={<CompletedTasksPage />} />
       <Route path="/projects" element={<ProjectList />} />
       <Route path="/projects/:projectId" element={<ProjectDetailPage />} />
     </Routes>
