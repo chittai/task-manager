@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Modal,
   FormField,
@@ -14,7 +15,7 @@ import {
   Spinner,
 } from '@cloudscape-design/components';
 import { useTasks, InternalTask } from '../hooks/useTasks';
-import { Task } from '../models/Task';
+import { Task, EnergyLevel, TimeEstimate } from '../models/Task';
 
 interface GtdFlowModalProps {
   isOpen: boolean;
@@ -23,6 +24,12 @@ interface GtdFlowModalProps {
 }
 
 const GtdFlowModal: React.FC<GtdFlowModalProps> = ({ isOpen, onClose, memoId }) => {
+  // useNavigateフックを使用してページ遷移を実現
+  const navigate = useNavigate();
+  
+  // リダイレクト先のURLを保持する状態変数
+  const [redirectUrl, setRedirectUrl] = useState<string | null>(null);
+  
   // useTasks フックを使用してタスク操作関数を取得
   const { 
     allTasks, 
@@ -229,8 +236,19 @@ const GtdFlowModal: React.FC<GtdFlowModalProps> = ({ isOpen, onClose, memoId }) 
               // タスクを「いつかやる」リストに移動
               moveTaskToSomedayMaybe(currentTask.id, itemDescription)
                 .then(() => {
+                  // GTD属性を設定
+                  return updateTask(currentTask.id, {
+                    isProject: false,
+                    nextAction: false,
+                    energy: 'medium' as EnergyLevel,
+                    time: 'medium' as TimeEstimate
+                  });
+                })
+                .then(() => {
                   setIsProcessing(false);
-                  onClose();
+                  setCompletionMessage('タスクを「いつかやる/多分やる」リストに移動しました。');
+                  setCompletionStatus('success');
+                  setRedirectUrl('/someday-maybe');
                 })
                 .catch(err => {
                   console.error('タスク移動エラー:', err);
@@ -246,10 +264,17 @@ const GtdFlowModal: React.FC<GtdFlowModalProps> = ({ isOpen, onClose, memoId }) 
                 description: itemDescription,
                 status: 'someday-maybe',
                 priority: 'medium', // デフォルト優先度
+                // GTD属性を設定
+                isProject: false,
+                nextAction: false,
+                energy: 'medium' as EnergyLevel,
+                time: 'medium' as TimeEstimate
               })
                 .then(() => {
                   setIsProcessing(false);
-                  onClose();
+                  setCompletionMessage('タスクを「いつかやる/多分やる」リストに追加しました。');
+                  setCompletionStatus('success');
+                  setRedirectUrl('/someday-maybe');
                 })
                 .catch((err: Error) => {
                   console.error('タスク作成エラー:', err);
@@ -265,8 +290,19 @@ const GtdFlowModal: React.FC<GtdFlowModalProps> = ({ isOpen, onClose, memoId }) 
               // タスクを参考資料として保存
               moveTaskToReference(currentTask.id, itemDescription)
                 .then(() => {
+                  // GTD属性を設定
+                  return updateTask(currentTask.id, {
+                    isProject: false,
+                    nextAction: false,
+                    energy: 'low' as EnergyLevel,
+                    time: 'quick' as TimeEstimate
+                  });
+                })
+                .then(() => {
                   setIsProcessing(false);
-                  onClose();
+                  setCompletionMessage('タスクを「参考資料」リストに移動しました。');
+                  setCompletionStatus('success');
+                  setRedirectUrl('/reference');
                 })
                 .catch(err => {
                   console.error('タスク移動エラー:', err);
@@ -282,10 +318,17 @@ const GtdFlowModal: React.FC<GtdFlowModalProps> = ({ isOpen, onClose, memoId }) 
                 description: itemDescription,
                 status: 'reference',
                 priority: 'low', // 参考資料は優先度低めをデフォルトに
+                // GTD属性を設定
+                isProject: false,
+                nextAction: false,
+                energy: 'low' as EnergyLevel,
+                time: 'quick' as TimeEstimate
               })
                 .then(() => {
                   setIsProcessing(false);
-                  onClose();
+                  setCompletionMessage('タスクを「参考資料」リストに追加しました。');
+                  setCompletionStatus('success');
+                  setRedirectUrl('/reference');
                 })
                 .catch((err: Error) => {
                   console.error('タスク作成エラー:', err);
@@ -317,8 +360,19 @@ const GtdFlowModal: React.FC<GtdFlowModalProps> = ({ isOpen, onClose, memoId }) 
             // 既存タスクをプロジェクトに変換
             convertTaskToProject(currentTask.id, itemDescription)
               .then(() => {
+                // GTD属性を設定
+                return updateTask(currentTask.id, {
+                  isProject: true,
+                  nextAction: false,
+                  energy: 'high' as EnergyLevel,
+                  time: 'long' as TimeEstimate
+                });
+              })
+              .then(() => {
                 setIsProcessing(false);
-                onClose();
+                setCompletionMessage('タスクをプロジェクトに変換しました。');
+                setCompletionStatus('success');
+                setRedirectUrl('/projects');
               })
               .catch(err => {
                 console.error('プロジェクト変換エラー:', err);
@@ -337,11 +391,17 @@ const GtdFlowModal: React.FC<GtdFlowModalProps> = ({ isOpen, onClose, memoId }) 
 【GTDフローメモ】: プロジェクトとして作成`,
               status: 'todo',
               priority: 'medium',
-              // isProjectプロパティはタスク作成時に指定できないため、メモとして記録
+              // GTD属性を設定
+              isProject: true,
+              nextAction: false,
+              energy: 'high' as EnergyLevel,
+              time: 'long' as TimeEstimate
             })
               .then(() => {
                 setIsProcessing(false);
-                onClose();
+                setCompletionMessage('プロジェクトを作成しました。');
+                setCompletionStatus('success');
+                setRedirectUrl('/projects');
               })
               .catch((err: Error) => {
                 console.error('プロジェクト作成エラー:', err);
@@ -473,9 +533,21 @@ const GtdFlowModal: React.FC<GtdFlowModalProps> = ({ isOpen, onClose, memoId }) 
             setIsProcessing(true);
             setTaskToWaitingOn(currentTask.id, delegateTo, itemDescription)
               .then(() => {
+                // GTD属性を設定
+                return updateTask(currentTask.id, {
+                  delegatedTo: delegateTo,
+                  waitingFor: delegateTo,
+                  isProject: false,
+                  nextAction: false,
+                  energy: 'low' as EnergyLevel,
+                  time: 'quick' as TimeEstimate
+                });
+              })
+              .then(() => {
                 setCompletionMessage(`タスクを${delegateTo ? `「${delegateTo}」に` : ''}委任しました。待機リストに追加しました。`);
                 setCompletionStatus('success');
                 setIsProcessing(false);
+                setRedirectUrl('/wait-on');
                 return; // 明示的にreturnを追加
               })
               .catch(error => {
@@ -494,12 +566,19 @@ const GtdFlowModal: React.FC<GtdFlowModalProps> = ({ isOpen, onClose, memoId }) 
 【GTDフローメモ】: ${delegateTo ? `「${delegateTo}」に` : ''}委任したタスク`,
               status: 'wait-on',
               priority: 'medium',
-              // delegatedToプロパティはタスク作成時に指定できないため、メモとして記録
+              // GTD属性を設定
+              delegatedTo: delegateTo,
+              waitingFor: delegateTo,
+              isProject: false,
+              nextAction: false,
+              energy: 'low' as EnergyLevel,
+              time: 'quick' as TimeEstimate
             })
               .then(() => {
                 setCompletionMessage(`タスクを${delegateTo ? `「${delegateTo}」に` : ''}委任しました。待機リストに追加しました。`);
                 setCompletionStatus('success');
                 setIsProcessing(false);
+                setRedirectUrl('/wait-on');
                 return; // 明示的にreturnを追加
               })
               .catch((err: Error) => {
@@ -537,11 +616,18 @@ const GtdFlowModal: React.FC<GtdFlowModalProps> = ({ isOpen, onClose, memoId }) 
             updateTask(currentTask.id, {
               dueDate: dueDate,
               status: 'todo',
-              description: `${currentTask.description || ''}\n\n【GTDフローメモ】: 期日付きタスク`
+              description: `${currentTask.description || ''}\n\n【GTDフローメモ】: 期日付きタスク`,
+              // GTD属性を設定
+              isProject: false,
+              nextAction: true,
+              energy: 'medium' as EnergyLevel,
+              time: 'medium' as TimeEstimate
             }).then(() => {
-              // スケジュール時はモーダルを閉じる
+              // スケジュール時は成功メッセージを表示
               setIsProcessing(false);
-              onClose();
+              setCompletionMessage(`タスクを期日付きタスクとして設定しました。期日: ${formattedDate}`);
+              setCompletionStatus('success');
+              setRedirectUrl('/todo');
             }).catch(error => {
               console.error('タスク更新エラー:', error);
               setCompletionMessage('タスクの更新中にエラーが発生しました。');
@@ -559,11 +645,18 @@ const GtdFlowModal: React.FC<GtdFlowModalProps> = ({ isOpen, onClose, memoId }) 
               status: 'todo',
               priority: 'medium',
               dueDate: dueDate,
+              // GTD属性を設定
+              isProject: false,
+              nextAction: true,
+              energy: 'medium' as EnergyLevel,
+              time: 'medium' as TimeEstimate
             })
               .then(() => {
-                // スケジュール時はモーダルを閉じる
+                // スケジュール時は成功メッセージを表示
                 setIsProcessing(false);
-                onClose();
+                setCompletionMessage(`タスクを期日付きタスクとして作成しました。期日: ${formattedDate}`);
+                setCompletionStatus('success');
+                setRedirectUrl('/todo');
               })
               .catch((err: Error) => {
                 console.error('タスク作成エラー:', err);
@@ -579,11 +672,19 @@ const GtdFlowModal: React.FC<GtdFlowModalProps> = ({ isOpen, onClose, memoId }) 
             setIsProcessing(true);
             updateTask(currentTask.id, {
               status: 'todo',
-              description: `${currentTask.description || ''}\n\n【GTDフローメモ】: 次のアクションリストに追加`
+              description: `${currentTask.description || ''}\n\n【GTDフローメモ】: 次のアクションリストに追加`,
+              // GTD属性を設定
+              isProject: false,
+              nextAction: true,
+              energy: 'medium' as EnergyLevel,
+              time: 'medium' as TimeEstimate,
+              contextTag: ['next-action']
             }).then(() => {
-              // 次のアクションリスト追加時はモーダルを閉じる
+              // 次のアクションリスト追加時は成功メッセージを表示
               setIsProcessing(false);
-              onClose();
+              setCompletionMessage('タスクを次のアクションリストに追加しました。');
+              setCompletionStatus('success');
+              setRedirectUrl('/todo');
             }).catch(error => {
               console.error('タスク更新エラー:', error);
               setCompletionMessage('タスクの更新中にエラーが発生しました。');
@@ -600,11 +701,19 @@ const GtdFlowModal: React.FC<GtdFlowModalProps> = ({ isOpen, onClose, memoId }) 
 【GTDフローメモ】: 次のアクションリストに追加`,
               status: 'todo',
               priority: 'medium',
+              // GTD属性を設定
+              isProject: false,
+              nextAction: true,
+              energy: 'medium' as EnergyLevel,
+              time: 'medium' as TimeEstimate,
+              contextTag: ['next-action']
             })
               .then(() => {
-                // 次のアクションリスト追加時はモーダルを閉じる
+                // 次のアクションリスト追加時は成功メッセージを表示
                 setIsProcessing(false);
-                onClose();
+                setCompletionMessage('新規タスクを次のアクションリストに追加しました。');
+                setCompletionStatus('success');
+                setRedirectUrl('/todo');
               })
               .catch((err: Error) => {
                 console.error('タスク作成エラー:', err);
@@ -925,9 +1034,15 @@ const GtdFlowModal: React.FC<GtdFlowModalProps> = ({ isOpen, onClose, memoId }) 
       autoCloseTimerRef.current = null;
     }
     
-    // どの場合も確認なしで閉じる
-    // 実際の実装では、完了メッセージが表示されていない場合は確認ダイアログを表示することも検討できる
+    // モーダルを閉じる
     onClose();
+    
+    // リダイレクトURLが設定されている場合はリダイレクトを行う
+    if (redirectUrl) {
+      navigate(redirectUrl);
+      // リダイレクト後はリセット
+      setRedirectUrl(null);
+    }
   };
 
   return (
@@ -937,27 +1052,33 @@ const GtdFlowModal: React.FC<GtdFlowModalProps> = ({ isOpen, onClose, memoId }) 
       header={getModalTitle()}
       footer={(
         <SpaceBetween direction="horizontal" size="xs">
-          <Button 
-            variant="link" 
-            onClick={handlePreviousStep} 
-            disabled={currentStep === 1 || !!completionMessage}
-          >
-            戻る
-          </Button>
-          <Button 
-            variant="primary" 
-            onClick={() => {
-              // 成功メッセージが表示されている場合はモーダルを閉じる
-              if (completionMessage) {
-                onClose();
-              } else {
-                handleNextStep();
-              }
-            }}
-            disabled={isNextButtonDisabled()}
-          >
-            {nextButtonText()}
-          </Button>
+          {completionMessage && completionStatus === 'success' ? (
+            // 成功メッセージが表示されている場合は「閉じる」ボタンのみ表示
+            <Button 
+              variant="primary" 
+              onClick={handleModalClose} // onCloseではなくhandleModalCloseを呼び出す
+            >
+              閉じる
+            </Button>
+          ) : (
+            // 通常のフローでは「戻る」と「次へ」ボタンを表示
+            <>
+              <Button 
+                variant="link" 
+                onClick={handlePreviousStep} 
+                disabled={currentStep === 1}
+              >
+                戻る
+              </Button>
+              <Button 
+                variant="primary" 
+                onClick={handleNextStep}
+                disabled={isNextButtonDisabled()}
+              >
+                {nextButtonText()}
+              </Button>
+            </>
+          )}
         </SpaceBetween>
       )}
     >
