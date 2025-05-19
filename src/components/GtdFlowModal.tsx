@@ -63,6 +63,7 @@ const GtdFlowModal: React.FC<GtdFlowModalProps> = ({ isOpen, onClose, memoId }) 
   const [completionMessage, setCompletionMessage] = useState<string | null>(null);
   const [completionStatus, setCompletionStatus] = useState<AlertProps['type'] | null>(null);
   const [isProcessing, setIsProcessing] = useState(false); // データ処理中のローディング状態
+  const [isTerminal, setIsTerminal] = useState(false); // フロー終了状態を示すフラグ
   const [autoCloseCountdown, setAutoCloseCountdown] = useState<number | null>(null); // 自動閉じるカウントダウン
   const autoCloseTimerRef = useRef<NodeJS.Timeout | null>(null); // 自動閉じるタイマーの参照
   
@@ -95,6 +96,7 @@ const GtdFlowModal: React.FC<GtdFlowModalProps> = ({ isOpen, onClose, memoId }) 
       setCompletionMessage(null);
       setCompletionStatus(null);
       setIsProcessing(false);
+      setIsTerminal(false); // 終了状態をリセット
       setCurrentTask(null);
       setAutoCloseCountdown(null);
       
@@ -129,7 +131,7 @@ const GtdFlowModal: React.FC<GtdFlowModalProps> = ({ isOpen, onClose, memoId }) 
         onClose();
       }
     }
-  }, [isOpen, memoId, onClose, completionMessage, completionStatus, allTasks]);
+  }, [isOpen, memoId, onClose, allTasks]);
 
   /**
    * 次のステップに進むための処理を行います。
@@ -137,10 +139,8 @@ const GtdFlowModal: React.FC<GtdFlowModalProps> = ({ isOpen, onClose, memoId }) 
    * 必要に応じてタスク更新処理を実行します。
    */
   const handleNextStep = () => {
-    // 成功メッセージが表示されている場合はモーダルを閉じる
-    if (completionMessage) {
-      // 成功メッセージが表示されている場合はモーダルを閉じる
-      onClose();
+    // 成功メッセージが表示されていて終了状態の場合は何もしない（自動閉じるタイマーに任せる）
+    if (completionMessage && isTerminal) {
       return;
     }
     
@@ -216,7 +216,9 @@ const GtdFlowModal: React.FC<GtdFlowModalProps> = ({ isOpen, onClose, memoId }) 
               trashTask(currentTask.id)
                 .then(() => {
                   setIsProcessing(false);
-                  onClose();
+                  setCompletionMessage('タスクをゴミ箱に移動しました。');
+                  setCompletionStatus('success');
+                  setIsTerminal(true); // 終了状態をセット
                 })
                 .catch(err => {
                   console.error('タスク削除エラー:', err);
@@ -225,9 +227,11 @@ const GtdFlowModal: React.FC<GtdFlowModalProps> = ({ isOpen, onClose, memoId }) 
                   setIsProcessing(false);
                 });
             } else {
-              // 新規タスクの場合は何もしない
+              // 新規タスクの場合は成功メッセージを表示
               setIsProcessing(false);
-              onClose();
+              setCompletionMessage('アイテムをゴミ箱に移動しました。');
+              setCompletionStatus('success');
+              setIsTerminal(true); // 終了状態をセット
             }
             break;
             
@@ -249,6 +253,7 @@ const GtdFlowModal: React.FC<GtdFlowModalProps> = ({ isOpen, onClose, memoId }) 
                   setCompletionMessage('タスクを「いつかやる/多分やる」リストに移動しました。');
                   setCompletionStatus('success');
                   setRedirectUrl('/someday-maybe');
+                  setIsTerminal(true); // 終了状態をセット
                 })
                 .catch(err => {
                   console.error('タスク移動エラー:', err);
@@ -275,6 +280,7 @@ const GtdFlowModal: React.FC<GtdFlowModalProps> = ({ isOpen, onClose, memoId }) 
                   setCompletionMessage('タスクを「いつかやる/多分やる」リストに追加しました。');
                   setCompletionStatus('success');
                   setRedirectUrl('/someday-maybe');
+                  setIsTerminal(true); // 終了状態をセット
                 })
                 .catch((err: Error) => {
                   console.error('タスク作成エラー:', err);
@@ -303,6 +309,7 @@ const GtdFlowModal: React.FC<GtdFlowModalProps> = ({ isOpen, onClose, memoId }) 
                   setCompletionMessage('タスクを「参考資料」リストに移動しました。');
                   setCompletionStatus('success');
                   setRedirectUrl('/reference');
+                  setIsTerminal(true); // 終了状態をセット
                 })
                 .catch(err => {
                   console.error('タスク移動エラー:', err);
@@ -329,6 +336,7 @@ const GtdFlowModal: React.FC<GtdFlowModalProps> = ({ isOpen, onClose, memoId }) 
                   setCompletionMessage('タスクを「参考資料」リストに追加しました。');
                   setCompletionStatus('success');
                   setRedirectUrl('/reference');
+                  setIsTerminal(true); // 終了状態をセット
                 })
                 .catch((err: Error) => {
                   console.error('タスク作成エラー:', err);
@@ -373,6 +381,7 @@ const GtdFlowModal: React.FC<GtdFlowModalProps> = ({ isOpen, onClose, memoId }) 
                 setCompletionMessage('タスクをプロジェクトに変換しました。');
                 setCompletionStatus('success');
                 setRedirectUrl('/projects');
+                setIsTerminal(true); // 終了状態をセット
               })
               .catch(err => {
                 console.error('プロジェクト変換エラー:', err);
@@ -402,6 +411,7 @@ const GtdFlowModal: React.FC<GtdFlowModalProps> = ({ isOpen, onClose, memoId }) 
                 setCompletionMessage('プロジェクトを作成しました。');
                 setCompletionStatus('success');
                 setRedirectUrl('/projects');
+                setIsTerminal(true); // 終了状態をセット
               })
               .catch((err: Error) => {
                 console.error('プロジェクト作成エラー:', err);
@@ -447,7 +457,9 @@ const GtdFlowModal: React.FC<GtdFlowModalProps> = ({ isOpen, onClose, memoId }) 
             changeTaskStatus(currentTask.id, 'done')
               .then(() => {
                 setIsProcessing(false);
-                onClose();
+                setCompletionMessage('タスクを完了しました。');
+                setCompletionStatus('success');
+                setIsTerminal(true); // 終了状態をセット
               })
               .catch((error: Error) => {
                 console.error('タスク完了エラー:', error);
@@ -465,7 +477,9 @@ const GtdFlowModal: React.FC<GtdFlowModalProps> = ({ isOpen, onClose, memoId }) 
             })
               .then(() => {
                 setIsProcessing(false);
-                onClose();
+                setCompletionMessage('タスクを作成し、完了しました。');
+                setCompletionStatus('success');
+                setIsTerminal(true); // 終了状態をセット
               })
               .catch((err: Error) => {
                 console.error('タスク作成エラー:', err);
@@ -485,7 +499,9 @@ const GtdFlowModal: React.FC<GtdFlowModalProps> = ({ isOpen, onClose, memoId }) 
               description: `${currentTask.description || ''}\n\n【GTDフローメモ】: 2分ルール適用、今すぐ実行するタスク`
             }).then(() => {
               setIsProcessing(false);
-              onClose();
+              setCompletionMessage('タスクを今すぐ実行するタスクとして設定しました。');
+              setCompletionStatus('success');
+              setIsTerminal(true); // 終了状態をセット
             }).catch((error: Error) => {
               console.error('タスク更新エラー:', error);
               setCompletionMessage('タスクの更新中にエラーが発生しました。');
@@ -503,7 +519,9 @@ const GtdFlowModal: React.FC<GtdFlowModalProps> = ({ isOpen, onClose, memoId }) 
               .then(() => {
                 // 2分ルール適用時はモーダルを閉じる
                 setIsProcessing(false);
-                onClose();
+                setCompletionMessage('タスクを作成し、今すぐ実行するタスクとして設定しました。');
+                setCompletionStatus('success');
+                setIsTerminal(true); // 終了状態をセット
               })
               .catch((err: Error) => {
                 console.error('タスク作成エラー:', err);
@@ -628,6 +646,7 @@ const GtdFlowModal: React.FC<GtdFlowModalProps> = ({ isOpen, onClose, memoId }) 
               setCompletionMessage(`タスクを期日付きタスクとして設定しました。期日: ${formattedDate}`);
               setCompletionStatus('success');
               setRedirectUrl('/todo');
+              setIsTerminal(true); // 終了状態をセット
             }).catch(error => {
               console.error('タスク更新エラー:', error);
               setCompletionMessage('タスクの更新中にエラーが発生しました。');
@@ -657,6 +676,7 @@ const GtdFlowModal: React.FC<GtdFlowModalProps> = ({ isOpen, onClose, memoId }) 
                 setCompletionMessage(`タスクを期日付きタスクとして作成しました。期日: ${formattedDate}`);
                 setCompletionStatus('success');
                 setRedirectUrl('/todo');
+                setIsTerminal(true); // 終了状態をセット
               })
               .catch((err: Error) => {
                 console.error('タスク作成エラー:', err);
@@ -685,6 +705,7 @@ const GtdFlowModal: React.FC<GtdFlowModalProps> = ({ isOpen, onClose, memoId }) 
               setCompletionMessage('タスクを次のアクションリストに追加しました。');
               setCompletionStatus('success');
               setRedirectUrl('/todo');
+              setIsTerminal(true); // 終了状態をセット
             }).catch(error => {
               console.error('タスク更新エラー:', error);
               setCompletionMessage('タスクの更新中にエラーが発生しました。');
@@ -714,6 +735,7 @@ const GtdFlowModal: React.FC<GtdFlowModalProps> = ({ isOpen, onClose, memoId }) 
                 setCompletionMessage('新規タスクを次のアクションリストに追加しました。');
                 setCompletionStatus('success');
                 setRedirectUrl('/todo');
+                setIsTerminal(true); // 終了状態をセット
               })
               .catch((err: Error) => {
                 console.error('タスク作成エラー:', err);
@@ -985,42 +1007,34 @@ const GtdFlowModal: React.FC<GtdFlowModalProps> = ({ isOpen, onClose, memoId }) 
    * 成功メッセージが表示された後、自動的にモーダルを閉じるタイマーを開始します。
    */
   useEffect(() => {
-    // 成功メッセージが表示された場合、自動閉じるタイマーを開始
-    if (completionMessage && completionStatus === 'success') {
-      // 既存のタイマーがあれば解除
+    // 成功メッセージがあり、終了状態の場合のみタイマーを開始
+    if (completionMessage && completionStatus === 'success' && isTerminal) {
+      console.log('自動閉じるタイマーを開始します');
+      // タイマーがすでに存在する場合はクリア
       if (autoCloseTimerRef.current) {
         clearInterval(autoCloseTimerRef.current);
         autoCloseTimerRef.current = null;
       }
       
-      // 3秒のカウントダウンを開始
-      const AUTO_CLOSE_SECONDS = 3;
-      setAutoCloseCountdown(AUTO_CLOSE_SECONDS);
+      // 即時にモーダルを閉じる
+      onClose();
       
-      autoCloseTimerRef.current = setInterval(() => {
-        setAutoCloseCountdown(prev => {
-          if (prev === null || prev <= 1) {
-            // カウントダウン終了、モーダルを閉じる
-            if (autoCloseTimerRef.current) {
-              clearInterval(autoCloseTimerRef.current);
-              autoCloseTimerRef.current = null;
-            }
-            onClose();
-            return null;
-          }
-          return prev - 1;
-        });
-      }, 1000);
-      
-      // コンポーネントのアンマウント時にタイマーをクリーンアップ
-      return () => {
-        if (autoCloseTimerRef.current) {
-          clearInterval(autoCloseTimerRef.current);
-          autoCloseTimerRef.current = null;
-        }
-      };
+      // リダイレクトURLが設定されている場合はリダイレクトを行う
+      if (redirectUrl) {
+        navigate(redirectUrl);
+        // リダイレクト後はリセット
+        setRedirectUrl(null);
+      }
     }
-  }, [completionMessage, completionStatus, onClose]);
+    
+    // コンポーネントのアンマウント時にタイマーをクリーンアップ
+    return () => {
+      if (autoCloseTimerRef.current) {
+        clearInterval(autoCloseTimerRef.current);
+        autoCloseTimerRef.current = null;
+      }
+    };
+  }, [completionMessage, completionStatus, isTerminal, onClose, redirectUrl, navigate]);
 
   /**
    * モーダルを閉じる処理を行います。
@@ -1032,6 +1046,11 @@ const GtdFlowModal: React.FC<GtdFlowModalProps> = ({ isOpen, onClose, memoId }) 
     if (autoCloseTimerRef.current) {
       clearInterval(autoCloseTimerRef.current);
       autoCloseTimerRef.current = null;
+    }
+    
+    // 処理中の場合は閉じない
+    if (isProcessing) {
+      return;
     }
     
     // モーダルを閉じる
@@ -1052,8 +1071,8 @@ const GtdFlowModal: React.FC<GtdFlowModalProps> = ({ isOpen, onClose, memoId }) 
       header={getModalTitle()}
       footer={(
         <SpaceBetween direction="horizontal" size="xs">
-          {completionMessage && completionStatus === 'success' ? (
-            // 成功メッセージが表示されている場合は「閉じる」ボタンのみ表示
+          {completionMessage && completionStatus === 'success' && isTerminal ? (
+            // 成功メッセージが表示されていて終了状態の場合は「閉じる」ボタンのみ表示
             <Button 
               variant="primary" 
               onClick={handleModalClose} // onCloseではなくhandleModalCloseを呼び出す
@@ -1066,14 +1085,14 @@ const GtdFlowModal: React.FC<GtdFlowModalProps> = ({ isOpen, onClose, memoId }) 
               <Button 
                 variant="link" 
                 onClick={handlePreviousStep} 
-                disabled={currentStep === 1}
+                disabled={currentStep === 1 || isTerminal}
               >
                 戻る
               </Button>
               <Button 
                 variant="primary" 
                 onClick={handleNextStep}
-                disabled={isNextButtonDisabled()}
+                disabled={isNextButtonDisabled() || isTerminal}
               >
                 {nextButtonText()}
               </Button>
