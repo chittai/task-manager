@@ -27,6 +27,10 @@ const GtdFlowModal: React.FC<GtdFlowModalProps> = ({ isOpen, onClose, memoId }) 
   // 自動閉じるタイマーの参照
   const autoCloseTimerRef = useRef<NodeJS.Timeout | null>(null);
   
+  // 🔧 FIX 1: 初期化制御用のRef
+  const isInitializedRef = useRef(false);
+  const lastMemoIdRef = useRef<string | null>(null);
+  
   // GTDフローのアクション機能
   // ステップごとのアクション実行ロジックを取得
   const taskActions = useTasks();
@@ -35,47 +39,48 @@ const GtdFlowModal: React.FC<GtdFlowModalProps> = ({ isOpen, onClose, memoId }) 
   // GTDフローのナビゲーション機能
   const navigation = useGtdFlowNavigation(state, actions, onClose, stepActions);
   
-  /**
-   * モーダルが開かれたときの初期化処理を行います。
-   * memoIdが渡された場合は、そのメモの情報を読み込みます。
-   */
+  // 🔧 FIX 2: 初期化専用のuseEffect
   useEffect(() => {
-    if (isOpen) {
-      // モーダルが開かれたときにすべての状態を初期化
+    if (isOpen && !isInitializedRef.current) {
+      console.log('🔄 Initializing GTD Flow state');
       initializeGtdFlowState(actions);
+      isInitializedRef.current = true;
       
-      // タイマーがあれば解除
       if (autoCloseTimerRef.current) {
         clearInterval(autoCloseTimerRef.current);
         autoCloseTimerRef.current = null;
-      }
-      
-      // memoIdが存在する場合、そのメモの情報を読み込む
-      if (memoId && allTasks) {
-        const task = allTasks.find(task => task.id === memoId);
-        if (task) {
-          actions.setCurrentTask(task);
-          actions.setItemName(task.title);
-          actions.setItemDescription(task.description || '');
-          console.log(`メモID: ${memoId} の情報を読み込みました`);
-        } else {
-          console.error(`メモID: ${memoId} が見つかりませんでした`);
-          actions.setCompletionMessage(`指定されたメモ (ID: ${memoId}) が見つかりませんでした。`);
-          actions.setCompletionStatus('error');
-        }
-      }
-    } else {
-      // モーダルが閉じられたときの処理
-      if (autoCloseTimerRef.current) {
-        clearInterval(autoCloseTimerRef.current);
-        autoCloseTimerRef.current = null;
-      }
-      if (!state.completionMessage || state.completionStatus === 'success') {
-        // 完了メッセージが表示されていない場合、または成功メッセージが表示されている場合はモーダルを閉じる
-        onClose();
       }
     }
-  }, [isOpen, memoId, onClose, allTasks, actions, state.completionMessage, state.completionStatus]);
+    
+    if (!isOpen) {
+      console.log('🔄 Resetting GTD Flow state');
+      isInitializedRef.current = false;
+      lastMemoIdRef.current = null;
+      
+      if (autoCloseTimerRef.current) {
+        clearInterval(autoCloseTimerRef.current);
+        autoCloseTimerRef.current = null;
+      }
+    }
+  }, [isOpen]); // ✅ 最小限の依存配列
+  
+  // 🔧 FIX 3: タスク読み込み専用のuseEffect
+  useEffect(() => {
+    if (isOpen && memoId && allTasks && memoId !== lastMemoIdRef.current) {
+      const task = allTasks.find(task => task.id === memoId);
+      if (task) {
+        console.log(`📋 Loading task info for memoId: ${memoId}`);
+        actions.setCurrentTask(task);
+        actions.setItemName(task.title);
+        actions.setItemDescription(task.description || '');
+        lastMemoIdRef.current = memoId;
+      } else {
+        console.error(`❌ Task not found for memoId: ${memoId}`);
+        actions.setCompletionMessage(`指定されたメモ (ID: ${memoId}) が見つかりませんでした。`);
+        actions.setCompletionStatus('error');
+      }
+    }
+  }, [isOpen, memoId, allTasks]); // ✅ actionsを除去、重複防止
   
   /**
    * 完了メッセージが表示されていて、自動閉じるカウントダウンが設定されている場合の処理
