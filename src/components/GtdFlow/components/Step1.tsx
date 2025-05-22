@@ -26,6 +26,7 @@ const Step1: React.FC<Step1Props> = ({ state, actions }) => {
           value={itemName}
           onChange={({ detail }) => setItemName(detail.value)}
           placeholder="例: 会議の準備"
+          data-testid="item-name-input"
         />
       </FormField>
       
@@ -37,6 +38,7 @@ const Step1: React.FC<Step1Props> = ({ state, actions }) => {
           value={itemDescription}
           onChange={({ detail }) => setItemDescription(detail.value)}
           placeholder="例: 会議資料の作成、参加者への連絡など"
+          data-testid="item-description-input"
         />
       </FormField>
     </>
