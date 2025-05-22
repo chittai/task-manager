@@ -25,11 +25,22 @@
     "uuid": "^11.1.0",
     "web-vitals": "^2.1.4"
   },
+  "devDependencies": {
+    "@playwright/test": "^1.48.0"
+  },
   "scripts": {
     "start": "react-scripts start",
     "build": "react-scripts build",
     "test": "react-scripts test",
-    "eject": "react-scripts eject"
+    "eject": "react-scripts eject",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
+    "test:e2e:debug": "playwright test --debug",
+    "test:gtd-flow": "playwright test gtd-flow-comprehensive.test.ts",
+    "test:gtd-flow:headed": "playwright test gtd-flow-comprehensive.test.ts --headed",
+    "generate:test-report": "ts-node tests/utils/gtd-flow-test-reporter.ts",
+    "test:gtd-flow:full": "npm run test:gtd-flow && npm run generate:test-report",
+    "clean:test-results": "rm -rf test-results/gtd-flow-screenshots/* test-results/gtd-flow-reports/*"
   },
   "eslintConfig": {
     "extends": [
