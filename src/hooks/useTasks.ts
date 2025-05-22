@@ -133,6 +133,25 @@ export const useTasks = () => {
     }
   }, [tasks, loading]);
 
+  // --- Task Validation Utilities ---
+  const taskExists = useCallback((taskId: string): boolean => {
+    return tasks.some(task => task.id === taskId);
+  }, [tasks]);
+  
+  const getTaskById = useCallback((taskId: string): InternalTask | null => {
+    return tasks.find(task => task.id === taskId) || null;
+  }, [tasks]);
+  
+  const validateTaskId = useCallback((taskId: string, operation: string): InternalTask | null => {
+    const task = getTaskById(taskId);
+    if (!task) {
+      console.error(`❌ ${operation}: Task not found for ID: ${taskId}`);
+      console.error(`Available task IDs:`, tasks.map(t => t.id));
+      setError(`${operation}: 指定されたタスク（ID: ${taskId}）が見つかりません。`);
+    }
+    return task;
+  }, [getTaskById, tasks]);
+
   // --- CRUD Operations ---
   const addTask = useCallback((taskData: TaskFormData): Promise<InternalTask | null> => {
     const now = new Date();
@@ -338,6 +357,12 @@ export const useTasks = () => {
   const moveTaskToSomedayMaybe = useCallback((taskId: string, notes?: string): Promise<InternalTask | null> => {
     return new Promise((resolve, reject) => {
       try {
+        const existingTask = validateTaskId(taskId, 'moveTaskToSomedayMaybe');
+        if (!existingTask) {
+          resolve(null);
+          return;
+        }
+
         let updatedTask: InternalTask | null = null;
         
         setTasks(prevTasks => {
@@ -381,12 +406,18 @@ export const useTasks = () => {
         reject(error);
       }
     });
-  }, []);
+  }, [validateTaskId]);
   
   // メモを「参照資料」に分類
   const moveTaskToReference = useCallback((taskId: string, notes?: string): Promise<InternalTask | null> => {
     return new Promise((resolve, reject) => {
       try {
+        const existingTask = validateTaskId(taskId, 'moveTaskToReference');
+        if (!existingTask) {
+          resolve(null);
+          return;
+        }
+
         let updatedTask: InternalTask | null = null;
         
         setTasks(prevTasks => {
@@ -430,12 +461,18 @@ export const useTasks = () => {
         reject(error);
       }
     });
-  }, []);
+  }, [validateTaskId]);
   
   // メモを「連絡待ち」に設定
   const setTaskToWaitingOn = useCallback((taskId: string, delegatedTo?: string, notes?: string): Promise<InternalTask | null> => {
     return new Promise((resolve, reject) => {
       try {
+        const existingTask = validateTaskId(taskId, 'setTaskToWaitingOn');
+        if (!existingTask) {
+          resolve(null);
+          return;
+        }
+
         let updatedTask: InternalTask | null = null;
         
         setTasks(prevTasks => {
@@ -488,12 +525,18 @@ export const useTasks = () => {
         reject(error);
       }
     });
-  }, []);
+  }, [validateTaskId]);
   
   // タスクをプロジェクト化（複数アクションが必要な場合）
   const convertTaskToProject = useCallback((taskId: string, notes?: string): Promise<InternalTask | null> => {
     return new Promise((resolve, reject) => {
       try {
+        const existingTask = validateTaskId(taskId, 'convertTaskToProject');
+        if (!existingTask) {
+          resolve(null);
+          return;
+        }
+
         let updatedTask: InternalTask | null = null;
         
         setTasks(prevTasks => {
@@ -537,12 +580,18 @@ export const useTasks = () => {
         reject(error);
       }
     });
-  }, []);
+  }, [validateTaskId]);
   
   // タスクを削除（ゴミ箱へ）
   const trashTask = useCallback((taskId: string): Promise<boolean> => {
     return new Promise((resolve, reject) => {
       try {
+        const existingTask = validateTaskId(taskId, 'trashTask');
+        if (!existingTask) {
+          resolve(false);
+          return;
+        }
+
         setTasks(prevTasks => {
           const newTasks = prevTasks.filter(task => task.id !== taskId);
           return newTasks;
@@ -556,7 +605,7 @@ export const useTasks = () => {
         reject(error);
       }
     });
-  }, []);
+  }, [validateTaskId]);
   
   // --- Utility functions for data conversion ---
   const toInternalTask = (task: Task): InternalTask => {
@@ -724,5 +773,9 @@ export const useTasks = () => {
     setTaskToWaitingOn,
     convertTaskToProject,
     trashTask,
+    // ユーティリティ関数を追加
+    taskExists,
+    getTaskById,
+    validateTaskId,
   };
 };
