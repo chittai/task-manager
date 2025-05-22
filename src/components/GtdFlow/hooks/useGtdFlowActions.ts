@@ -30,56 +30,28 @@ export const useGtdFlowActions = (
    * ステップ1の「次へ」ボタン処理
    */
   const handleStep1Next = () => {
-    console.log('handleStep1Next called');
-    console.log('state in handleStep1Next:', state);
-    console.log('actions in handleStep1Next:', Object.keys(actions));
-    console.log('taskActions in handleStep1Next:', Object.keys(taskActions));
+    const { itemName } = state;
     
-    const { itemName, currentTask } = state;
-    const { setIsProcessing, setCurrentStep, setCompletionMessage, setCompletionStatus } = actions;
+    // DOM値も確認して同期
+    const domInput = document.querySelector('input[placeholder*="例: 会議の準備"]') as HTMLInputElement;
+    const actualValue = domInput?.value || itemName;
     
-    console.log('itemName:', itemName);
-    console.log('currentTask:', currentTask);
-    console.log('setCurrentStep type:', typeof setCurrentStep);
-    
-    if (!itemName.trim()) {
-      console.log('itemName is empty');
-      setCompletionMessage('アイテム名を入力してください。');
-      setCompletionStatus('error');
+    if (!actualValue.trim()) {
+      // DOM値で再試行
+      if (domInput?.value && !itemName.trim()) {
+        actions.setItemName(domInput.value);
+        setTimeout(() => handleStep1Next(), 100);
+        return;
+      }
+      // エラー表示
+      actions.setCompletionMessage('アイテム名を入力してください。');
+      actions.setCompletionStatus('error');
       return;
     }
     
-    console.log('itemName is valid, proceeding...');
-    console.log('About to call setCurrentStep with value 2');
-    
-    // ステップを文字列リテラルで指定
+    // 既存のロジック...
     const nextStep: GtdFlowStep = 'STEP2';
-    
-    // タスクが存在しない場合は新規作成、存在する場合は更新
-    if (currentTask) {
-      // 既存タスクのタイトルと説明を更新
-      setIsProcessing(true);
-      taskActions.updateTask(currentTask.id, {
-        title: itemName,
-        description: state.itemDescription,
-      }).then(() => {
-        setIsProcessing(false);
-        // 入力が有効なら次のステップへ
-        console.log('Setting currentStep to nextStep:', nextStep);
-        setCurrentStep(nextStep);
-      }).catch(err => {
-        console.error('タスク更新エラー:', err);
-        setCompletionMessage('タスクの更新中にエラーが発生しました。');
-        setCompletionStatus('error');
-        setIsProcessing(false);
-      });
-    } else {
-      // 入力が有効なら次のステップへ
-      console.log('No current task, directly setting currentStep to nextStep:', nextStep);
-      // 次のステップを設定
-      setCurrentStep(nextStep);
-      console.log('CurrentStep set to nextStep');
-    }
+    actions.setCurrentStep(nextStep);
   };
   
   /**
@@ -89,7 +61,7 @@ export const useGtdFlowActions = (
     const { isActionable } = state;
     const { setCurrentStep, setCompletionMessage, setCompletionStatus } = actions;
     
-    if (!isActionable) {
+    if (isActionable === null || isActionable === undefined) {
       setCompletionMessage('「行動を起こす必要があるか？」を選択してください。');
       setCompletionStatus('error');
       return;

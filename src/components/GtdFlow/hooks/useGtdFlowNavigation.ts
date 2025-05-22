@@ -81,7 +81,7 @@ export const useGtdFlowNavigation = (
       case 'STEP1':
         return !itemName.trim(); // アイテム名が空の場合は無効
       case 'STEP2':
-        return !isActionable; // 「行動を起こす必要があるか？」が選択されていない場合は無効
+        return isActionable === null || isActionable === undefined; // 「行動を起こす必要があるか？」が選択されていない場合は無効
       case 'STEP2A':
         return !nonActionableOutcome; // 「行動不要な場合、どうしますか？」が選択されていない場合は無効
       case 'STEP3':
@@ -208,13 +208,8 @@ export const useGtdFlowNavigation = (
    * 次のステップに進む処理を行う関数
    */
   const handleNextStep = () => {
-    console.log('handleNextStep called, currentStep:', state.currentStep);
-    console.log('state object:', state);
-    console.log('actions object:', Object.keys(actions));
-    
     // 成功メッセージが表示されていて終了状態の場合は何もしない
     if (state.completionMessage && state.isTerminal) {
-      console.log('Terminal state, not proceeding');
       return;
     }
     
@@ -222,61 +217,33 @@ export const useGtdFlowNavigation = (
     actions.setCompletionMessage(null);
     actions.setCompletionStatus(null);
     
-    // 処理中のローディング状態をリセット
-    actions.setIsProcessing(false);
-    
-    console.log('actualStepActions:', actualStepActions);
-    console.log('actualStepActions keys:', Object.keys(actualStepActions));
-    console.log('actualStepActions.handleStep1Next type:', typeof actualStepActions.handleStep1Next);
-    if (actualStepActions.handleStep1Next) {
-      console.log('handleStep1Next function:', actualStepActions.handleStep1Next.toString().substring(0, 150));
-    }
-    
-    // デバッグ用にステップの値を直接取得
-    let currentStepValue = state.currentStep;
-    console.log('Current step value before switch:', currentStepValue);
-    
     // 現在のステップに応じた処理を実行
-    console.log('Executing switch statement with currentStep:', state.currentStep);
-    console.log('currentStep type:', typeof state.currentStep);
-    
-    // 文字列リテラルで比較する
-    console.log('Using string literal comparison for currentStep:', state.currentStep);
-    
     switch (state.currentStep) {
       case 'STEP1':
-        console.log('Executing case STEP1');
         actualStepActions.handleStep1Next();
         break;
       case 'STEP2':
-        console.log('Executing case STEP2');
         actualStepActions.handleStep2Next();
         break;
       case 'STEP2A':
-        console.log('Executing case STEP2A');
         actualStepActions.handleStep2ANext();
         break;
       case 'STEP3':
-        console.log('Executing case STEP3');
         actualStepActions.handleStep3Next();
         break;
       case 'STEP4':
-        console.log('Executing case STEP4');
         actualStepActions.handleStep4Next();
         break;
       case 'STEP4A':
-        console.log('Executing case STEP4A');
         actualStepActions.handleStep4ANext();
         break;
       case 'STEP5':
-        console.log('Executing case STEP5');
         actualStepActions.handleStep5Next();
         break;
       case 'STEP6':
         actualStepActions.handleStep6Next();
         break;
       default:
-        // デフォルトでは何もしない
         break;
     }
   };

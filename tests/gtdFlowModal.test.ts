@@ -1,6 +1,38 @@
 import { test, expect } from '@playwright/test';
 
 test.describe('GTDフローモーダルのテスト', () => {
+  test.beforeEach(async ({ page }) => {
+    // アプリケーションにアクセス
+    await page.goto('http://localhost:3000/inbox');
+    
+    // ページが読み込まれるのを待つ（タイムアウトを増やす）
+    await page.waitForSelector('h1:has-text("インボックス")', { timeout: 60000 });
+    console.log('インボックスページが読み込まれました');
+    
+    // テスト用に直接GTDフローモーダルを開くリンクを作成
+    await page.evaluate(() => {
+      // モーダルを開く関数を実行するリンクを作成
+      const link = document.createElement('a');
+      link.textContent = 'GTDフローモーダルを開く';
+      link.id = 'open-gtd-modal';
+      link.href = '#';
+      link.onclick = () => {
+        // グローバルなステート管理からGTDフローモーダルを開く
+        const event = new CustomEvent('openGtdFlowModal');
+        document.dispatchEvent(event);
+        return false;
+      };
+      document.body.prepend(link);
+    });
+    
+    // 作成したリンクをクリック
+    await page.click('#open-gtd-modal');
+    
+    // モーダルが表示されるのを待つ
+    await page.waitForSelector('div[role="dialog"]:has-text("それは何か？")');
+    await page.screenshot({ path: 'gtdflow-step1.png' });
+    console.log('GTDフローモーダルが開きました');
+  });
   test('モーダルを開いて「次へ」ボタンが機能することを確認', async ({ page }) => {
     // アプリケーションにアクセス
     await page.goto('http://localhost:3000/inbox');

@@ -47,11 +47,19 @@ const GtdFlowFooter: React.FC<GtdFlowFooterProps> = ({ state, navigation }) => {
           console.log('isTerminal:', isTerminal);
           console.log('currentStep:', state.currentStep);
           console.log('handleNextStep type:', typeof handleNextStep);
-          console.log('navigation object:', Object.keys(navigation));
-          // デバッグ用に関数の中身を確認
-          console.log('handleNextStep function:', handleNextStep.toString().substring(0, 150));
+          
           // ボタンクリック時にアクションを実行
+          // クリック時の状態を保存
+          const currentStepAtClick = state.currentStep;
+          console.log('Current step at click time:', currentStepAtClick);
+          
+          // ハンドラーを実行
           handleNextStep();
+          
+          // ステップ遷移の確認用タイマー
+          setTimeout(() => {
+            console.log('After handleNextStep, currentStep changed from', currentStepAtClick, 'to', state.currentStep);
+          }, 100);
         }}
         disabled={isNextButtonDisabled() || isTerminal}
       >
