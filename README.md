@@ -15,13 +15,14 @@ AWS Cloudscapeデザインシステムを使用したタスク管理アプリケ
   - 改善されたエラーハンドリング
   - デバッグ機能付き
 
-## 最新の更新（v1.1.0）
+## 最新の更新（v1.2.0）
 
-### GTDフローエラー修正
-- タスクが見つからない場合のエラーハンドリング改善
-- ローディング状態の適切な表示
-- デバッグ情報の追加
-- より詳細なエラーメッセージ
+### GTDフロー包括的テストスイート
+- **8つの主要パターン**を網羅したPlaywrightテスト
+- **自動スクリーンショット取得**機能
+- **HTMLレポート生成**機能
+- **エラーハンドリング**テスト
+- **CI/CD対応**
 
 詳細な修正内容については [GTD_FLOW_ERROR_FIX.md](./GTD_FLOW_ERROR_FIX.md) をご確認ください。
 
@@ -31,6 +32,7 @@ AWS Cloudscapeデザインシステムを使用したタスク管理アプリケ
 - TypeScript
 - AWS Cloudscape Design System
 - LocalStorage API
+- **Playwright**（E2Eテスト）
 
 ## 始め方
 
@@ -48,6 +50,9 @@ cd task-manager
 # 依存関係のインストール
 npm install
 
+# Playwrightのインストール（テスト実行時）
+npx playwright install
+
 # 開発サーバーの起動
 npm start
 ```
@@ -62,6 +67,77 @@ npm start
 4. タスクカードのステータスボタンをクリックして、タスクのステータスを変更します。
 5. フィルターを使用して、特定のタスクを検索します。
 6. **GTDフロー**：タスクを選択してGTDフローを開始し、タスクを適切に整理・分類します。
+
+## テストとデバッグ
+
+### 🧪 GTDフローテスト
+
+包括的なPlaywrightテストスイートが実装されています：
+
+```bash
+# GTDフローの全パターンテスト
+npm run test:gtd-flow
+
+# ブラウザ表示モードでテスト
+npm run test:gtd-flow:headed
+
+# テスト実行 + HTMLレポート生成
+npm run test:gtd-flow:full
+
+# レポートのみ生成
+npm run generate:test-report
+```
+
+#### 📊 テスト対象パターン
+
+1. **🗑️ パターン1**: 非実行項目をゴミ箱に移動
+2. **⏰ パターン2**: いつかやるリストに移動
+3. **📚 パターン3**: 参照資料に分類
+4. **🎯 パターン4**: プロジェクト化
+5. **⚡ パターン5**: 2分以内で即実行
+6. **📅 パターン6**: カレンダーに登録
+7. **📝 パターン7**: 次のアクションリストに追加
+8. **👥 パターン8**: 他者に委任
+
+#### 📸 スクリーンショット機能
+
+- 各テストパターンで**全ステップ**のスクリーンショットを自動取得
+- **HTMLレポート**でビジュアル確認可能
+- **モーダル表示**での拡大確認
+- **タイムスタンプ付き**ファイル名で整理
+
+詳細は [GTDフローテストガイド](./tests/GTD_FLOW_TESTING_GUIDE.md) を参照してください。
+
+### その他のテスト
+
+```bash
+# 全E2Eテストを実行
+npm run test:e2e
+
+# Playwright UIモードで実行
+npm run test:e2e:ui
+
+# ユニットテストの実行
+npm test
+
+# テスト結果のクリーンアップ
+npm run clean:test-results
+```
+
+### デバッグツール
+
+#### GTDフローのデバッグ
+ブラウザのコンソールで以下を実行してください：
+```javascript
+// デバッグツールを実行
+gtdFlowDebug.runConsoleTests();
+
+// 利用可能なタスクIDを確認
+gtdFlowDebug.debugUtils.showAvailableTaskIds();
+
+// テスト用タスクを作成
+gtdFlowDebug.debugUtils.createTestTask();
+```
 
 ## トラブルシューティング
 
@@ -82,6 +158,20 @@ gtdFlowDebug.debugUtils.createTestTask();
 
 3. 詳細な情報については [GTD_FLOW_ERROR_FIX.md](./GTD_FLOW_ERROR_FIX.md) を参照
 
+### テストエラーの場合
+
+1. アプリケーションが起動していることを確認
+```bash
+curl http://localhost:3000
+```
+
+2. ブラウザ表示モードでデバッグ
+```bash
+npm run test:gtd-flow:headed
+```
+
+3. 詳細なテストガイドを参照: [GTDフローテストガイド](./tests/GTD_FLOW_TESTING_GUIDE.md)
+
 ## プロジェクト構造
 
 ```
@@ -93,10 +183,10 @@ src/
   │   ├── TaskModal.tsx       # タスク作成・編集モーダル
   │   └── GtdFlow/            # GTDフロー関連コンポーネント
   │       ├── GtdFlowModal.tsx
-  │       ├── components/
-  │       ├── hooks/
-  │       ├── types/
-  │       └── utils/
+  │       ├── components/     # ステップコンポーネント
+  │       ├── hooks/          # カスタムフック
+  │       ├── types/          # 型定義
+  │       └── utils/          # ユーティリティ
   ├── hooks/                  # カスタムフック
   │   └── useTasks.ts         # タスク管理ロジック
   ├── models/                 # データモデル
@@ -105,30 +195,53 @@ src/
   │   └── gtdFlowDebug.ts     # GTDフローデバッグツール
   ├── App.tsx                 # メインアプリケーション
   └── index.tsx               # エントリーポイント
+
+tests/
+  ├── gtd-flow-comprehensive.test.ts  # GTDフロー包括テスト
+  ├── utils/
+  │   └── gtd-flow-test-reporter.ts   # HTMLレポート生成
+  └── GTD_FLOW_TESTING_GUIDE.md       # テストガイド
+
+test-results/
+  ├── gtd-flow-screenshots/           # スクリーンショット
+  └── gtd-flow-reports/               # HTMLレポート
 ```
 
-## テストとデバッグ
+## CI/CD
 
-### GTDフローのテスト
-- 手動テスト用のデバッグツールが `src/utils/gtdFlowDebug.ts` に含まれています
-- ブラウザのコンソールで `gtdFlowDebug` オブジェクトを使用してテストを実行できます
+### GitHub Actions
 
-### 自動テスト
-```bash
-# テストの実行
-npm test
+自動テストとレポート生成がGitHub Actionsで実行されます：
 
-# Playwrightテストの実行（E2Eテスト）
-npm run test:e2e
+```yaml
+# .github/workflows/gtd-flow-tests.yml
+- name: Run GTD Flow tests
+  run: npm run test:gtd-flow:full
+
+- name: Upload test results
+  uses: actions/upload-artifact@v3
+  with:
+    name: gtd-flow-test-results
+    path: test-results/
 ```
 
 ## 貢献
 
 1. このリポジトリをフォーク
 2. フィーチャーブランチを作成 (`git checkout -b feature/AmazingFeature`)
-3. 変更をコミット (`git commit -m 'Add some AmazingFeature'`)
-4. ブランチにプッシュ (`git push origin feature/AmazingFeature`)
-5. プルリクエストを作成
+3. **テストを追加・実行**してください:
+   ```bash
+   npm run test:gtd-flow:full
+   ```
+4. 変更をコミット (`git commit -m 'Add some AmazingFeature'`)
+5. ブランチにプッシュ (`git push origin feature/AmazingFeature`)
+6. プルリクエストを作成
+
+### テスト要件
+
+- 新機能には対応するE2Eテストを追加
+- GTDフロー関連の変更にはスクリーンショット付きテストを含める
+- テストレポートで動作確認を行う
 
 ## ライセンス
 
@@ -136,8 +249,23 @@ npm run test:e2e
 
 ## バージョン履歴
 
+- **v1.2.0** (2025-05-22): GTDフロー包括的テストスイート追加
+  - 8パターンの完全テストカバレッジ
+  - 自動スクリーンショット取得
+  - HTMLレポート生成機能
+  - CI/CD対応
 - **v1.1.0** (2025-05-22): GTDフローエラーハンドリング改善
   - タスク検証機能の追加
   - ローディング状態の改善
   - デバッグツールの追加
 - **v1.0.0**: 初期リリース
+
+---
+
+## 📞 サポート
+
+- 🐛 **バグレポート**: [GitHub Issues](https://github.com/chittai/task-manager/issues)
+- 📖 **ドキュメント**: [テストガイド](./tests/GTD_FLOW_TESTING_GUIDE.md)
+- 🔧 **デバッグ**: コンソールで`gtdFlowDebug`オブジェクトを使用
+
+🎉 **Happy Productivity with GTD!**
