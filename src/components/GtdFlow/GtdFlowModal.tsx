@@ -19,7 +19,7 @@ const GtdFlowModal: React.FC<GtdFlowModalProps> = ({ isOpen, onClose, memoId }) 
   const navigate = useNavigate();
   
   // useTasks フックを使用してタスク操作関数を取得
-  const { allTasks } = useTasks();
+  const { allTasks, loading: tasksLoading } = useTasks();
   
   // GTDフローの状態管理
   const [state, actions] = useGtdFlowState();
@@ -64,23 +64,51 @@ const GtdFlowModal: React.FC<GtdFlowModalProps> = ({ isOpen, onClose, memoId }) 
     }
   }, [isOpen]); // ✅ 最小限の依存配列
   
-  // 🔧 FIX 3: タスク読み込み専用のuseEffect
+  // 🔧 FIX 3: タスク読み込み専用のuseEffect（改善版）
   useEffect(() => {
-    if (isOpen && memoId && allTasks && memoId !== lastMemoIdRef.current) {
-      const task = allTasks.find(task => task.id === memoId);
-      if (task) {
-        console.log(`📋 Loading task info for memoId: ${memoId}`);
-        actions.setCurrentTask(task);
-        actions.setItemName(task.title);
-        actions.setItemDescription(task.description || '');
-        lastMemoIdRef.current = memoId;
-      } else {
-        console.error(`❌ Task not found for memoId: ${memoId}`);
-        actions.setCompletionMessage(`指定されたメモ (ID: ${memoId}) が見つかりませんでした。`);
-        actions.setCompletionStatus('error');
-      }
+    // タスクの読み込みが完了していない場合は処理をスキップ
+    if (tasksLoading || !isOpen || !memoId || !allTasks) {
+      return;
     }
-  }, [isOpen, memoId, allTasks]); // ✅ actionsを除去、重複防止
+    
+    // 同じmemoIdに対する重複処理を防ぐ
+    if (memoId === lastMemoIdRef.current) {
+      return;
+    }
+    
+    console.log(`🔍 Searching for task with memoId: ${memoId} in ${allTasks.length} tasks`);
+    
+    // デバッグ用：利用可能なタスクIDをログ出力
+    console.log('Available task IDs:', allTasks.map(t => t.id));
+    
+    const task = allTasks.find(task => task.id === memoId);
+    
+    if (task) {
+      console.log(`📋 Loading task info for memoId: ${memoId}`, task);
+      actions.setCurrentTask(task);
+      actions.setItemName(task.title);
+      actions.setItemDescription(task.description || '');
+      lastMemoIdRef.current = memoId;
+      
+      // 既存のエラーメッセージをクリア
+      actions.setCompletionMessage(null);
+      actions.setCompletionStatus(null);
+    } else {
+      console.error(`❌ Task not found for memoId: ${memoId}`);
+      
+      // より詳細なエラーメッセージ
+      const errorMessage = `指定されたタスク (ID: ${memoId}) が見つかりませんでした。\n\n考えられる原因：\n• タスクが削除された可能性があります\n• 別のセッションで変更された可能性があります\n• データの同期に問題がある可能性があります\n\nタスク一覧に戻って再度お試しください。`;
+      
+      actions.setCompletionMessage(errorMessage);
+      actions.setCompletionStatus('error');
+      actions.setIsTerminal(true);
+      
+      // エラーが発生した場合は3秒後に自動的にモーダルを閉じる
+      setTimeout(() => {
+        onClose();
+      }, 3000);
+    }
+  }, [isOpen, memoId, allTasks, tasksLoading, actions, onClose]); // 依存配列を最適化
   
   /**
    * 完了メッセージが表示されていて、自動閉じるカウントダウンが設定されている場合の処理
@@ -130,6 +158,23 @@ const GtdFlowModal: React.FC<GtdFlowModalProps> = ({ isOpen, onClose, memoId }) 
       }
     };
   }, [state, actions, onClose, navigate]);
+  
+  // タスクの読み込み中はローディング表示
+  if (tasksLoading && isOpen) {
+    return (
+      <Modal
+        onDismiss={onClose}
+        visible={isOpen}
+        header="GTDフロー"
+      >
+        <Form>
+          <div style={{ textAlign: 'center', padding: '20px' }}>
+            <p>タスク情報を読み込み中...</p>
+          </div>
+        </Form>
+      </Modal>
+    );
+  }
   
   return (
     <Modal
